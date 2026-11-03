@@ -1,0 +1,41 @@
+{
+  "name": "alloma-ai",
+  "version": "1.0.0",
+  "description": "O'zbek allomalari haqida ma'lumotlar beruvchi veb-sayt (Node.js + TypeScript)",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "dev": "npm run build:client && concurrently -k -n server,client -c cyan,magenta \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "tsx watch src/server.ts",
+    "dev:client": "esbuild client/src/main.ts --bundle --format=esm --sourcemap --target=es2022 --outfile=public/js/app.js --watch=forever",
+    "build": "npm run build:server && npm run build:client",
+    "build:server": "tsc -p tsconfig.build.json",
+    "build:client": "esbuild client/src/main.ts --bundle --format=esm --minify --target=es2022 --outfile=public/js/app.js",
+    "start": "node dist/src/server.js",
+    "typecheck": "tsc --noEmit && tsc -p client/tsconfig.json",
+    "images:fetch": "tsx scripts/fetch-images.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.3.0",
+    "@types/supertest": "^6.0.3",
+    "concurrently": "^9.2.0",
+    "esbuild": "^0.25.8",
+    "supertest": "^7.1.4",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

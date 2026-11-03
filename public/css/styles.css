@@ -1,0 +1,749 @@
+/* ==========================================================================
+   Alloma-AI — qo'lyozmalar kutubxonasi katalogi
+   Ranglar real materiallardan: pergament, siyoh, lojuvard (lapis).
+   Har bir davr o'z materiali bilan: Somoniylar g'ishti, Temuriylar firuza koshini,
+   Xiva oxrasi, jadid matbuoti siyohi (ro'yan), zamonaviy grafit.
+   Chuqurlik strategiyasi: yupqa halqa-soya (ring shadow). Asosiy birlik: 4px.
+   ========================================================================== */
+
+:root {
+  /* Sirtlar */
+  --parchment: #f5f0e6;
+  --vellum: #fbf8f1;
+  --well: #ebe4d6;
+
+  /* Siyoh — to'rt bosqichli matn rampasi */
+  --ink: #221c15;
+  --ink-2: #4b4237;
+  --ink-3: #776c5e;
+  --ink-4: #a3988a;
+
+  /* Chegaralar */
+  --rule: rgb(70 48 20 / 0.12);
+  --rule-strong: rgb(70 48 20 / 0.24);
+
+  /* Yagona aksent — faqat harakat va fokus uchun */
+  --lapis: #2a4d9b;
+  --focus-ring: 0 0 0 3px rgb(42 77 155 / 0.35);
+
+  /* Davr materiallari */
+  --brick: #9a5b2e;
+  --turquoise: #10808b;
+  --ochre: #8c6716;
+  --madder: #a03246;
+  --graphite: #56616d;
+
+  /* Chuqurlik */
+  --lift: 0 0 0 1px var(--rule), 0 1px 2px -1px rgb(70 48 20 / 0.08), 0 2px 6px rgb(70 48 20 / 0.05);
+  --lift-hover: 0 0 0 1px var(--rule-strong), 0 2px 4px -1px rgb(70 48 20 / 0.1),
+    0 8px 20px rgb(70 48 20 / 0.08);
+  --overlay: 0 0 0 1px var(--rule), 0 24px 56px -16px rgb(40 25 10 / 0.35);
+
+  /* Tipografiya: 1.25 nisbatli shkala, asos 15px */
+  --font-text: "Literata", Georgia, "Times New Roman", serif;
+  --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --step--1: 12px;
+  --step-0: 15px;
+  --step-1: 19px;
+  --step-2: 23px;
+  --step-3: 29px;
+  --step-4: 37px;
+  --step-5: 46px;
+
+  /* Bo'shliq (4px asos) */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+  --s8: 64px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --parchment: #15120e;
+    --vellum: #1d1914;
+    --well: #100d0a;
+
+    --ink: #ede5d7;
+    --ink-2: #c6bba9;
+    --ink-3: #978b7b;
+    --ink-4: #6c6257;
+
+    --rule: rgb(255 240 215 / 0.09);
+    --rule-strong: rgb(255 240 215 / 0.18);
+
+    --lapis: #8ea9ec;
+    --focus-ring: 0 0 0 3px rgb(142 169 236 / 0.4);
+
+    --brick: #d68d5e;
+    --turquoise: #4cc0c9;
+    --ochre: #d6b05a;
+    --madder: #e57d90;
+    --graphite: #9ea9b5;
+
+    --lift: 0 0 0 1px var(--rule);
+    --lift-hover: 0 0 0 1px var(--rule-strong);
+    --overlay: 0 0 0 1px var(--rule-strong), 0 24px 56px -16px rgb(0 0 0 / 0.6);
+  }
+}
+
+[data-era="ilk-orta-asr"] { --era: var(--brick); }
+[data-era="temuriylar"] { --era: var(--turquoise); }
+[data-era="xonliklar"] { --era: var(--ochre); }
+[data-era="jadidlar"] { --era: var(--madder); }
+[data-era="zamonaviy"] { --era: var(--graphite); }
+
+/* ---------- Asos ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--step-0);
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--parchment);
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
+
+.container {
+  width: min(1160px, 100% - 32px);
+  margin-inline: auto;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.label {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--step--1);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ---------- Tugmalar ---------- */
+.btn {
+  min-height: 44px;
+  padding: 0 var(--s4);
+  font: 500 var(--step-0) / 1 var(--font-ui);
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: transform 120ms var(--ease-out), background-color 150ms var(--ease-out),
+    box-shadow 150ms var(--ease-out);
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn--quiet {
+  color: var(--ink);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--rule-strong);
+}
+.btn--quiet:hover {
+  background: var(--vellum);
+}
+.btn--quiet:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--rule-strong), var(--focus-ring);
+}
+.btn--text {
+  padding: 0 var(--s2);
+  color: var(--lapis);
+  background: transparent;
+}
+.btn--text:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- Sarlavha qismi ---------- */
+.masthead {
+  padding: var(--s8) 0 var(--s6);
+}
+.masthead__brand {
+  margin: 0 0 var(--s3);
+  font-size: var(--step--1);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.masthead__title {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: var(--step-5);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+.masthead__lead {
+  max-width: 58ch;
+  margin: var(--s3) 0 var(--s5);
+  font-family: var(--font-text);
+  font-size: var(--step-1);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  max-width: 720px;
+}
+.search input {
+  flex: 1 1 320px;
+  min-width: 0;
+  height: 48px;
+  padding: 0 var(--s4);
+  font: 400 var(--step-0) var(--font-ui);
+  color: var(--ink);
+  background: var(--well);
+  border: 0;
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 0 0 1px var(--rule);
+}
+.search input::placeholder {
+  color: var(--ink-4);
+}
+.search input:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--lapis), var(--focus-ring);
+}
+.search .btn {
+  height: 48px;
+}
+
+/* ---------- Imzo: davrlar vaqt chizig'i ---------- */
+/* Har bir bo'lak eni davrning taxminiy davomiyligiga (asrlarda) mutanosib. */
+.timeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  margin-top: var(--s7);
+}
+.timeline__seg {
+  flex: 1 1 0;
+  min-width: 128px;
+  display: grid;
+  gap: 2px;
+  padding: var(--s3) var(--s3) var(--s3);
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--era) 8%, var(--vellum));
+  border: 0;
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 2px 0 var(--era), inset 0 0 0 1px var(--rule);
+  cursor: pointer;
+  transition: background-color 150ms var(--ease-out), transform 120ms var(--ease-out);
+}
+.timeline__seg[data-era="ilk-orta-asr"] { flex-grow: 6; }
+.timeline__seg[data-era="temuriylar"] { flex-grow: 2; }
+.timeline__seg[data-era="xonliklar"] { flex-grow: 3.5; }
+.timeline__seg[data-era="jadidlar"] { flex-grow: 1; }
+.timeline__seg[data-era="zamonaviy"] { flex-grow: 1.3; }
+
+.timeline__seg:hover {
+  background: color-mix(in srgb, var(--era) 14%, var(--vellum));
+}
+.timeline__seg:active {
+  transform: scale(0.98);
+}
+.timeline__seg[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--era) 20%, var(--vellum));
+  box-shadow: inset 0 2px 0 var(--era), inset 0 0 0 2px var(--era);
+}
+.timeline__seg:focus-visible {
+  box-shadow: inset 0 2px 0 var(--era), inset 0 0 0 1px var(--rule), var(--focus-ring);
+}
+.timeline__period {
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--era);
+}
+.timeline__name {
+  font-family: var(--font-text);
+  font-size: var(--step-0);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.timeline__count {
+  font-size: var(--step--1);
+  color: var(--ink-3);
+}
+
+/* ---------- Asboblar qatori ---------- */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--s3) var(--s4);
+  padding: var(--s4) 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.field {
+  display: grid;
+  gap: var(--s1);
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.field select {
+  min-width: 220px;
+  height: 44px;
+  padding: 0 var(--s3);
+  font: 400 var(--step-0) var(--font-ui);
+  color: var(--ink);
+  background: var(--well);
+  border: 0;
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 0 0 1px var(--rule);
+  cursor: pointer;
+}
+.field select:hover {
+  box-shadow: inset 0 0 0 1px var(--rule-strong);
+}
+.field select:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--lapis), var(--focus-ring);
+}
+.toolbar__summary {
+  margin: 0 0 var(--s3) auto;
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+/* ---------- Katalog ---------- */
+.catalog {
+  padding-bottom: var(--s8);
+  transition: opacity 150ms var(--ease-out);
+}
+.catalog[aria-busy="true"] {
+  opacity: 0.5;
+}
+
+.era {
+  padding-top: var(--s8);
+}
+.era--flat {
+  padding-top: var(--s6);
+}
+.era__head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  column-gap: var(--s4);
+  margin-bottom: var(--s5);
+}
+.era__period {
+  grid-column: 1 / -1;
+  margin: 0 0 var(--s1);
+  font-size: var(--step--1);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--era);
+}
+.era__title {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: var(--step-4);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.era__count {
+  margin: 0 0 6px;
+  font-size: var(--step-0);
+  color: var(--ink-3);
+}
+
+.era__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--s4);
+}
+
+/* Katalog kartochkasi */
+.entry {
+  background: var(--vellum);
+  border-radius: var(--radius-md);
+  box-shadow: var(--lift);
+  transition: box-shadow 180ms var(--ease-out);
+}
+.entry:hover {
+  box-shadow: var(--lift-hover);
+}
+.entry__link {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  grid-template-areas:
+    "portrait body"
+    "bio bio"
+    "fields fields";
+  gap: var(--s3) var(--s4);
+  height: 100%;
+  padding: var(--s4);
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-md);
+}
+.entry__link:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.portrait {
+  grid-area: portrait;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 88px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--well);
+}
+.portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 22%;
+  outline: 1px solid rgb(0 0 0 / 0.1);
+  outline-offset: -1px;
+  border-radius: inherit;
+}
+.portrait--mono {
+  font-family: var(--font-text);
+  font-size: var(--step-3);
+  font-weight: 500;
+  color: var(--era);
+  background: color-mix(in srgb, var(--era) 12%, var(--vellum));
+}
+
+.entry__body {
+  grid-area: body;
+  align-self: center;
+  min-width: 0;
+}
+.entry__years {
+  margin: 0;
+  font-size: var(--step-0);
+  font-weight: 600;
+  color: var(--era);
+}
+.entry__name {
+  margin: 2px 0 0;
+  font-family: var(--font-text);
+  font-size: var(--step-1);
+  font-weight: 600;
+  line-height: 1.25;
+}
+.entry__place {
+  margin: var(--s1) 0 0;
+  font-size: var(--step--1);
+  color: var(--ink-3);
+}
+.entry__bio {
+  grid-area: bio;
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: var(--step-0);
+  line-height: 1.6;
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.entry__fields {
+  grid-area: fields;
+  align-self: end;
+  margin: 0;
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+/* Holatlar: yuklanish, bo'sh, xato */
+.state {
+  padding: var(--s8) var(--s4);
+  text-align: center;
+  color: var(--ink-3);
+}
+.state p {
+  margin: 0;
+}
+.state .state__title {
+  margin-bottom: var(--s2);
+  font-family: var(--font-text);
+  font-size: var(--step-2);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* ---------- Batafsil oyna ---------- */
+dialog {
+  width: min(720px, 100% - 32px);
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  overflow: auto;
+  color: var(--ink);
+  background: var(--vellum);
+  border: 0;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--overlay);
+}
+dialog[open] {
+  animation: dialog-in 220ms var(--ease-out);
+}
+dialog::backdrop {
+  background: rgb(20 14 8 / 0.5);
+}
+dialog[open]::backdrop {
+  animation: fade-in 200ms var(--ease-out);
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.detail {
+  position: relative;
+}
+.detail__close {
+  position: absolute;
+  top: var(--s3);
+  right: var(--s3);
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: var(--ink-2);
+  background: color-mix(in srgb, var(--vellum) 88%, transparent);
+  border: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--rule);
+  cursor: pointer;
+  transition: background-color 150ms var(--ease-out), transform 120ms var(--ease-out);
+}
+.detail__close:hover {
+  color: var(--ink);
+  background: var(--vellum);
+}
+.detail__close:active {
+  transform: scale(0.94);
+}
+.detail__close:focus-visible {
+  box-shadow: 0 0 0 1px var(--rule), var(--focus-ring);
+}
+
+.detail__photo {
+  margin: 0;
+  background: var(--well);
+}
+.detail__photo img {
+  display: block;
+  width: 100%;
+  max-height: 380px;
+  object-fit: contain;
+}
+.detail__photo figcaption {
+  padding: var(--s2) var(--s6);
+  font-size: var(--step--1);
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--rule);
+}
+.detail__photo a {
+  color: var(--lapis);
+}
+
+.detail__content {
+  display: grid;
+  gap: var(--s5);
+  padding: var(--s6);
+}
+.detail__head {
+  padding-right: var(--s7);
+}
+.detail__years {
+  margin: 0;
+  font-size: var(--step-1);
+  font-weight: 600;
+  color: var(--era);
+}
+.detail__name {
+  margin: var(--s1) 0 0;
+  font-family: var(--font-text);
+  font-size: var(--step-4);
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+}
+.detail__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+  margin: var(--s3) 0 0;
+  color: var(--ink-3);
+}
+.era-tag {
+  padding: 2px var(--s2);
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--era);
+  background: color-mix(in srgb, var(--era) 12%, transparent);
+  border-radius: var(--radius-sm);
+}
+.detail__bio {
+  max-width: 62ch;
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: var(--step-1);
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+.detail__fields {
+  display: grid;
+  gap: var(--s1);
+  margin: 0;
+  color: var(--ink-2);
+}
+.detail__works {
+  display: grid;
+  gap: var(--s2);
+}
+.detail__works ul {
+  margin: 0;
+  padding-left: var(--s5);
+  font-family: var(--font-text);
+  color: var(--ink);
+}
+.detail__works li + li {
+  margin-top: var(--s1);
+}
+
+/* ---------- Pastki qism ---------- */
+.footer {
+  padding: var(--s6) 0 var(--s7);
+  font-size: var(--step--1);
+  color: var(--ink-3);
+  border-top: 1px solid var(--rule);
+}
+.footer p {
+  max-width: 70ch;
+  margin: 0;
+}
+
+/* ---------- Moslashuvchanlik ---------- */
+@media (max-width: 640px) {
+  .masthead {
+    padding-top: var(--s7);
+  }
+  .masthead__title {
+    font-size: var(--step-4);
+  }
+  /* Torda ekranda mutanosiblik o'qilmaydi — ikki ustunli to'rga o'tamiz. */
+  .timeline {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .timeline__seg {
+    min-width: 0;
+  }
+  .timeline__seg:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  .field {
+    flex: 1 1 100%;
+  }
+  .field select {
+    width: 100%;
+    min-width: 0;
+  }
+  .toolbar__summary {
+    margin-left: 0;
+  }
+  .era__title {
+    font-size: var(--step-3);
+  }
+  .era__grid {
+    grid-template-columns: 1fr;
+  }
+  .detail__content {
+    padding: var(--s5);
+  }
+  .detail__photo figcaption {
+    padding-inline: var(--s5);
+  }
+  .detail__name {
+    font-size: var(--step-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-property: opacity, background-color, box-shadow !important;
+  }
+  .btn:active,
+  .timeline__seg:active,
+  .detail__close:active {
+    transform: none;
+  }
+}
