@@ -27,7 +27,7 @@ import {
   type DiscussionContext,
 } from "./format.js";
 import type { AiClient } from "./groq.js";
-import { extractStickerTag, STICKER_COOLDOWN_MS, type StickerMood, type StickerSource } from "./stickers.js";
+import { addMoodEmoji, extractStickerTag, type StickerMood } from "./stickers.js";
 import type { BotApi, InlineButton, TgCallbackQuery, TgMessage, TgUpdate } from "./telegram-api.js";
 
 /** Bepul AI kvotasini himoya qilish: bitta chatdan (odamdan) AI so'rovlari orasidagi minimal vaqt. */
@@ -59,8 +59,6 @@ export interface AllomaBotDeps {
   guard?: BotGuard;
   /** Guruhdagi 1 soatlik munozara sessiyalari. */
   discussions?: DiscussionManager;
-  /** Hissiyot/imo-ishora stikerlari (berilmasa — stikersiz). */
-  stickers?: StickerSource | undefined;
   /** Odamdek "yozish" kechikishi (testlarda o'chiriladi). */
   humanLikeDelay?: boolean;
   log?: (message: string) => void;
@@ -128,8 +126,6 @@ export function parseAskPartner(text: string): string | undefined {
 
 export class AllomaBot {
   private readonly lastAiRequest = new Map<number, number>();
-  /** chat -> oxirgi stiker vaqti (stikerlar me'yorida bo'lishi uchun). */
-  private readonly lastSticker = new Map<number, number>();
   private readonly log: (message: string) => void;
   private readonly identity: BotIdentity;
   private readonly conversations: ConversationStore;
@@ -709,7 +705,9 @@ export class AllomaBot {
 
     // AI matni oddiy matn sifatida yuboriladi (formatlash xatolari bo'lmasligi uchun);
     // kod bo'lsa — HTML <pre> bloklari bilan (hammasi escape qilingan).
-    const body = truncate(answer, 4000);
+    // Hissiyot/imo-ishora bo'lsa — oxiriga bitta kichik emoji (botlarga va munozarada — yo'q).
+    const decorated = mood && !fromBot && !options.discussion ? addMoodEmoji(answer, mood) : answer;
+    const body = truncate(decorated, 4000);
     const sent = await this.deliver(ctx, "sendMessage", {
       ...(hasCodeBlock(body) ? { text: codeAnswerToHtml(body), parse_mode: "HTML" } : { text: body }),
       link_preview_options: { is_disabled: true },
@@ -721,31 +719,6 @@ export class AllomaBot {
           }
         : {}),
     });
-    if (sent && mood && !fromBot && !options.discussion) await this.maybeSendSticker(ctx, mood);
     return sent;
-  }
-
-  /**
-   * Hissiyot yoki imo-ishora bo'lsa — javobdan keyin bitta stiker.
-   * Me'yorida: bitta chatga 3 daqiqada ko'pi bilan 1 ta; botlarga va munozarada — hech qachon.
-   */
-  private async maybeSendSticker(ctx: ReplyContext, mood: StickerMood): Promise<void> {
-    const { stickers } = this.deps;
-    if (!stickers) return;
-    const now = this.now();
-    const last = this.lastSticker.get(ctx.chatId);
-    if (last !== undefined && now - last < STICKER_COOLDOWN_MS) return;
-    try {
-      const fileId = await stickers.pick(mood);
-      if (!fileId) return;
-      this.lastSticker.set(ctx.chatId, now);
-      if (this.lastSticker.size > 2000) {
-        const oldest = this.lastSticker.keys().next().value;
-        if (oldest !== undefined) this.lastSticker.delete(oldest);
-      }
-      await this.deliver({ chatId: ctx.chatId, isGroup: ctx.isGroup }, "sendSticker", { sticker: fileId });
-    } catch (err) {
-      this.log(`[bot] stiker yuborilmadi: ${(err as Error).message}`);
-    }
   }
 }
