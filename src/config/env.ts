@@ -35,6 +35,10 @@ const envSchema = z.object({
    */
   TELEGRAM_MODE: z.enum(["auto", "webhook", "polling", "off"]).default("auto"),
 
+  /** Bot o'zini qanday tanishtiradi ("Mening ismim …, meni … yaratgan"). */
+  BOT_NAME: z.string().min(1).max(64).default("Alloma AI"),
+  BOT_CREATOR: z.string().min(1).default("vzvz"),
+
   // --- Groq AI (bepul tarif) ---
   GROQ_API_KEY: z.string().min(10).optional(),
   // 2026-11 holatiga ko'ra mavjud modellar; o'chirilsa GroqClient o'zi mos modelni topadi.

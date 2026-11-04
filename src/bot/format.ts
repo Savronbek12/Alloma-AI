@@ -3,6 +3,45 @@ import { formatYears } from "../../shared/format.js";
 import type { Alloma } from "../../shared/types.js";
 import type { ChatMessage } from "./groq.js";
 
+export interface BotIdentity {
+  name: string;
+  creator: string;
+}
+
+export const DEFAULT_IDENTITY: BotIdentity = { name: "Alloma AI", creator: "vzvz" };
+
+export function identityAnswer(identity: BotIdentity): string {
+  return `Mening ismim ${identity.name}, meni ${identity.creator} yaratgan.`;
+}
+
+/**
+ * "Isming nima?", "Seni kim yaratgan?" va shu kabi savollar (o'zbek/rus/ingliz).
+ * Bunday savollarga AI'siz, har doim bir xil javob beriladi.
+ */
+const IDENTITY_PATTERNS = [
+  /\bism(ing|ingiz|i)\b.*\b(nima|kim)\b/,
+  /\b(nima|kim)\b.*\bism(ing|ingiz)\b/,
+  /\b(sen|siz)\s+(kimsan|kimsiz)\b/,
+  /\b(kimsan|kimsiz)\b/,
+  /\b(seni|sizni)\b.*\b(kim)\b.*\b(yaratgan|yasagan|qilgan|tuzgan|yozgan)\b/,
+  /\bkim\b.*\b(seni|sizni)\b.*\b(yaratgan|yasagan|tuzgan|yozgan)\b/,
+  /\b(yaratuvching|yaratuvchingiz|muallifing|egang)\b/,
+  /как\s+(тебя|вас)\s+зовут/,
+  /кто\s+(ты|вы)\b/,
+  /кто\s+(тебя|вас)\s+(создал|сделал|написал)/,
+  /\bwhat('s| is)\s+your\s+name\b/,
+  /\bwho\s+(are\s+you|(made|created|built)\s+you)\b/,
+];
+
+export function isIdentityQuestion(text: string): boolean {
+  const t = text
+    .toLowerCase()
+    .replace(/[ʻʼ‘’`']/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return IDENTITY_PATTERNS.some((p) => p.test(t));
+}
+
 /** Telegram HTML parse_mode uchun xavfsiz matn. */
 export function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -49,7 +88,12 @@ export function allomaButtonLabel(a: Alloma): string {
  * AI uchun so'rov: qisqa ro'yxat (barcha allomalar) + savolga mos allomalarning to'liq ma'lumoti.
  * Model faqat shu ma'lumotlarga tayanishi kerak — o'ylab topmasligi uchun.
  */
-export function buildAiMessages(question: string, all: readonly Alloma[], relevant: readonly Alloma[]): ChatMessage[] {
+export function buildAiMessages(
+  question: string,
+  all: readonly Alloma[],
+  relevant: readonly Alloma[],
+  identity: BotIdentity = DEFAULT_IDENTITY,
+): ChatMessage[] {
   const index = all.map((a) => `- ${a.name} (${formatYears(a)})`).join("\n");
   const details = relevant
     .map((a) =>
@@ -64,7 +108,8 @@ export function buildAiMessages(question: string, all: readonly Alloma[], releva
     .join("\n\n");
 
   const system = [
-    "Sen «Alloma-AI» Telegram botisan. O'zbek allomalari haqidagi savollarga o'zbek tilida (lotin yozuvida) javob berasan.",
+    `Sening isming — ${identity.name}. Seni ${identity.creator} yaratgan. Sen «Alloma-AI» loyihasining Telegram botisan va o'zbek allomalari haqidagi savollarga o'zbek tilida (lotin yozuvida) javob berasan.`,
+    `Isming yoki seni kim yaratgani so'ralsa, aynan shunday javob ber: "${identityAnswer(identity)}" O'zingni boshqa model, kompaniya yoki dastur nomi bilan atama.`,
     "Qoidalar:",
     "1. Faqat pastdagi MA'LUMOTLARga tayan. Ma'lumotlarda bo'lmagan fakt, sana yoki asarni o'ylab topma.",
     "2. Javob ma'lumotlarda bo'lmasa, buni ochiq ayt va /qidir yoki /davrlar buyruqlarini tavsiya qil.",

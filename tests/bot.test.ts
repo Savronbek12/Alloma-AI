@@ -53,7 +53,7 @@ describe("AllomaBot buyruqlari", () => {
   it("/start yordam matnini yuboradi", async () => {
     const { api, bot } = setup();
     await bot.handleUpdate(text("/start"));
-    expect(api.lastText()).toContain("Alloma-AI");
+    expect(api.lastText()).toContain("/tasodifiy");
     expect(api.sent("sendMessage")[0]?.params.parse_mode).toBe("HTML");
   });
 
@@ -100,6 +100,50 @@ describe("AllomaBot buyruqlari", () => {
       callback_query: { id: "q2", from: { id: 1, first_name: "A" }, message: { message_id: 3, chat: { id: 1, type: "private" } }, data: "a:mavjud-emas" },
     });
     expect(api.lastText()).toContain("topilmadi");
+  });
+});
+
+describe("AllomaBot o'zini tanishtirishi", () => {
+  const questions = [
+    "Isming nima?",
+    "ismingiz nima",
+    "Sen kimsan?",
+    "Seni kim yaratgan?",
+    "Kim seni yaratgan?",
+    "Как тебя зовут?",
+    "Кто тебя создал?",
+    "What is your name?",
+    "Who made you?",
+  ];
+
+  it.each(questions)("«%s» — AI'siz: 'Mening ismim Alloma AI, meni vzvz yaratgan.'", async (q) => {
+    const ai = new FakeAi();
+    const { api, bot } = setup({ ai });
+    await bot.handleUpdate(text(q));
+    expect(api.lastText()).toBe("Mening ismim Alloma AI, meni vzvz yaratgan.");
+    expect(ai.messages).toHaveLength(0);
+  });
+
+  it("oddiy savollar ism savoli deb hisoblanmaydi", async () => {
+    const ai = new FakeAi();
+    const { bot } = setup({ ai });
+    await bot.handleUpdate(text("Navoiyning asarlari qaysilar?"));
+    expect(ai.messages).toHaveLength(1);
+  });
+
+  it("AI ko'rsatmasida ism va yaratuvchi bor", async () => {
+    const ai = new FakeAi();
+    const { bot } = setup({ ai });
+    await bot.handleUpdate(text("Algebrani kim asoslagan?"));
+    const system = ai.messages[0]?.[0]?.content ?? "";
+    expect(system).toContain("Sening isming — Alloma AI");
+    expect(system).toContain("Mening ismim Alloma AI, meni vzvz yaratgan.");
+  });
+
+  it("/start o'zini Alloma AI deb tanishtiradi", async () => {
+    const { api, bot } = setup();
+    await bot.handleUpdate(text("/start"));
+    expect(api.lastText()).toContain("Men — <b>Alloma AI</b>");
   });
 });
 

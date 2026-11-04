@@ -6,9 +6,13 @@ import {
   allomaButtonLabel,
   allomaCaption,
   buildAiMessages,
+  DEFAULT_IDENTITY,
   escapeHtml,
+  identityAnswer,
+  isIdentityQuestion,
   stripMarkdown,
   truncate,
+  type BotIdentity,
 } from "./format.js";
 import type { AiClient } from "./groq.js";
 import type { BotApi, InlineButton, TgCallbackQuery, TgMessage, TgUpdate } from "./telegram-api.js";
@@ -23,6 +27,8 @@ export interface AllomaBotDeps {
   ai?: AiClient | undefined;
   /** Ommaviy sayt manzili (rasmlar va "Saytda ochish" tugmasi uchun). */
   siteUrl?: string | undefined;
+  /** Bot o'zini qanday tanishtiradi (standart: Alloma AI / vzvz). */
+  identity?: BotIdentity;
   log?: (message: string) => void;
   now?: () => number;
 }
@@ -34,8 +40,8 @@ export const BOT_COMMANDS = [
   { command: "yordam", description: "Bot imkoniyatlari" },
 ];
 
-const HELP_TEXT = [
-  "<b>Alloma-AI</b> — o'zbek allomalari haqida bot.",
+const helpText = (identity: BotIdentity) => [
+  `Salom! Men — <b>${escapeHtml(identity.name)}</b>, o'zbek allomalari haqida bot.`,
   "",
   "Savolingizni oddiy yozing, masalan:",
   "• <i>Algebrani kim asoslagan?</i>",
@@ -52,9 +58,11 @@ const HELP_TEXT = [
 export class AllomaBot {
   private readonly lastAiRequest = new Map<number, number>();
   private readonly log: (message: string) => void;
+  private readonly identity: BotIdentity;
 
   constructor(private readonly deps: AllomaBotDeps) {
     this.log = deps.log ?? ((m) => console.log(m));
+    this.identity = deps.identity ?? DEFAULT_IDENTITY;
   }
 
   async handleUpdate(update: TgUpdate): Promise<void> {
@@ -82,9 +90,11 @@ export class AllomaBot {
             ? this.sendSearch(chatId, arg)
             : this.send(chatId, "Qidiruv so'zini yozing, masalan: <code>/qidir Beruniy</code>");
         default:
-          return this.send(chatId, HELP_TEXT);
+          return this.send(chatId, helpText(this.identity));
       }
     }
+
+    if (isIdentityQuestion(text)) return this.send(chatId, escapeHtml(identityAnswer(this.identity)));
 
     const exact = this.deps.service.findByName(text);
     if (exact) return this.sendCard(chatId, exact);
@@ -209,7 +219,9 @@ export class AllomaBot {
 
     let answer: string;
     try {
-      answer = stripMarkdown(await ai.complete(buildAiMessages(question, service.all(), relevant)));
+      answer = stripMarkdown(
+        await ai.complete(buildAiMessages(question, service.all(), relevant, this.identity)),
+      );
     } catch (err) {
       this.log(`[bot] AI xato: ${(err as Error).message}`);
       await this.send(

@@ -68,7 +68,13 @@ export function createTelegramRuntime(service: AllomaService): TelegramRuntime |
     : undefined;
   if (!ai) console.warn("[bot] GROQ_API_KEY yo'q — AI javoblari o'chiq, buyruqlar ishlaydi");
 
-  const bot = new AllomaBot({ api, service, ai, siteUrl: env.publicUrl });
+  const bot = new AllomaBot({
+    api,
+    service,
+    ai,
+    siteUrl: env.publicUrl,
+    identity: { name: env.BOT_NAME, creator: env.BOT_CREATOR },
+  });
   const secret =
     env.TELEGRAM_WEBHOOK_SECRET ?? createHash("sha256").update(`alloma-ai:${token}`).digest("hex").slice(0, 48);
 
@@ -84,6 +90,10 @@ export function createTelegramRuntime(service: AllomaService): TelegramRuntime |
     async start() {
       await api.call("setMyCommands", { commands: BOT_COMMANDS }).catch((err: Error) =>
         console.warn("[bot] setMyCommands:", err.message),
+      );
+      // Telegram'da ko'rinadigan nom BOT_NAME bilan bir xil bo'lsin.
+      await api.call("setMyName", { name: env.BOT_NAME }).catch((err: Error) =>
+        console.warn("[bot] setMyName:", err.message),
       );
 
       if (mode === "webhook") {
