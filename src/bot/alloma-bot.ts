@@ -27,7 +27,7 @@ export interface AllomaBotDeps {
   ai?: AiClient | undefined;
   /** Ommaviy sayt manzili (rasmlar va "Saytda ochish" tugmasi uchun). */
   siteUrl?: string | undefined;
-  /** Bot o'zini qanday tanishtiradi (standart: Alloma AI / vzvz). */
+  /** Bot o'zini qanday tanishtiradi (standart: Alloma AI / Savronbek). */
   identity?: BotIdentity;
   log?: (message: string) => void;
   now?: () => number;

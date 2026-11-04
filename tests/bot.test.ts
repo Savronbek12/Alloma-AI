@@ -116,11 +116,11 @@ describe("AllomaBot o'zini tanishtirishi", () => {
     "Who made you?",
   ];
 
-  it.each(questions)("«%s» — AI'siz: 'Mening ismim Alloma AI, meni vzvz yaratgan.'", async (q) => {
+  it.each(questions)("«%s» — AI'siz: 'Mening ismim Alloma AI, meni Savronbek yaratgan.'", async (q) => {
     const ai = new FakeAi();
     const { api, bot } = setup({ ai });
     await bot.handleUpdate(text(q));
-    expect(api.lastText()).toBe("Mening ismim Alloma AI, meni vzvz yaratgan.");
+    expect(api.lastText()).toBe("Mening ismim Alloma AI, meni Savronbek yaratgan.");
     expect(ai.messages).toHaveLength(0);
   });
 
@@ -137,7 +137,7 @@ describe("AllomaBot o'zini tanishtirishi", () => {
     await bot.handleUpdate(text("Algebrani kim asoslagan?"));
     const system = ai.messages[0]?.[0]?.content ?? "";
     expect(system).toContain("Sening isming — Alloma AI");
-    expect(system).toContain("Mening ismim Alloma AI, meni vzvz yaratgan.");
+    expect(system).toContain("Mening ismim Alloma AI, meni Savronbek yaratgan.");
   });
 
   it("/start o'zini Alloma AI deb tanishtiradi", async () => {

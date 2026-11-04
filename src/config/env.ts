@@ -37,7 +37,7 @@ const envSchema = z.object({
 
   /** Bot o'zini qanday tanishtiradi ("Mening ismim …, meni … yaratgan"). */
   BOT_NAME: z.string().min(1).max(64).default("Alloma AI"),
-  BOT_CREATOR: z.string().min(1).default("vzvz"),
+  BOT_CREATOR: z.string().min(1).default("Savronbek"),
 
   // --- Groq AI (bepul tarif) ---
   GROQ_API_KEY: z.string().min(10).optional(),

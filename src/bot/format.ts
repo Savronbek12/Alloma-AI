@@ -8,7 +8,7 @@ export interface BotIdentity {
   creator: string;
 }
 
-export const DEFAULT_IDENTITY: BotIdentity = { name: "Alloma AI", creator: "vzvz" };
+export const DEFAULT_IDENTITY: BotIdentity = { name: "Alloma AI", creator: "Savronbek" };
 
 export function identityAnswer(identity: BotIdentity): string {
   return `Mening ismim ${identity.name}, meni ${identity.creator} yaratgan.`;
