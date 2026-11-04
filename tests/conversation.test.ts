@@ -179,7 +179,9 @@ describe("AI so'rovi hajmi (bepul tarif limiti)", () => {
   it("«Jonli suhbatdosh» personaji: qisqa, jonli, hazil, halollik", () => {
     const system = buildAiMessages("salom", service.all(), [])[0]?.content ?? "";
     expect(system).toContain("TELEGRAMDA YOZADIGAN ODAMDEK YOZ");
-    expect(system).toContain("HAZIL QILISH");
+    expect(system).toContain("HAZIL QILISH (KAM-KAM)");
+    expect(system).toContain("har 5–6 xabarda bir marta");
+    expect(system).toContain("ko'cha tilidagi ohang esa doim saqlansin");
     expect(system).toContain("hazilni to'xtat");
     expect(system).toContain("aslida men AI'man");
     expect(system).toContain("«Albatta!»");
