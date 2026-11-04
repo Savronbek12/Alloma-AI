@@ -48,6 +48,8 @@ export interface AllomaBotDeps {
   ai?: AiClient | undefined;
   /** Ommaviy sayt manzili (rasmlar va "Saytda ochish" tugmasi uchun). */
   siteUrl?: string | undefined;
+  /** Mini App manzili (https). Berilsa — shaxsiy chatda «📚 Fanlar» Mini App'ni ochadi. */
+  miniAppUrl?: string | undefined;
   /** Bot o'zini qanday tanishtiradi (standart: Alloma AI / Savronbek). */
   identity?: BotIdentity;
   /** Botning Telegram'dagi id va username'i (getMe). Guruhda murojaatni aniqlash uchun kerak. */
@@ -329,7 +331,14 @@ export class AllomaBot {
             parse_mode: "HTML",
             link_preview_options: { is_disabled: true },
             reply_markup: {
-              keyboard: [[{ text: SUBJECTS_BUTTON }, { text: RANDOM_BUTTON }]],
+              keyboard: [
+                [
+                  this.deps.miniAppUrl
+                    ? { text: SUBJECTS_BUTTON, web_app: { url: this.deps.miniAppUrl } }
+                    : { text: SUBJECTS_BUTTON },
+                  { text: RANDOM_BUTTON },
+                ],
+              ],
               resize_keyboard: true,
               is_persistent: true,
             },
@@ -344,6 +353,15 @@ export class AllomaBot {
 
   /** 15 ta fan — 3 tadan qatorda inline tugmalar. */
   private async sendSubjects(ctx: ReplyContext): Promise<void> {
+    // Shaxsiy chatda — Telegram ichidagi Mini App (guruhda web_app tugmalari ishlamaydi).
+    if (!ctx.isGroup && this.deps.miniAppUrl) {
+      await this.send(
+        ctx,
+        "📚 <b>15 ta fan</b> — Mini App'da oching: fanni tanlang va savollaringizni shu yerning o'zida bering.",
+        [[{ text: "📚 Fanlarni ochish", web_app: { url: this.deps.miniAppUrl } }]],
+      );
+      return;
+    }
     const buttons: InlineButton[][] = [];
     for (let i = 0; i < SUBJECTS.length; i += 3) {
       buttons.push(SUBJECTS.slice(i, i + 3).map((s) => ({ text: `${s.emoji} ${s.name}`, callback_data: `f:${s.id}` })));

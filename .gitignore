@@ -1,6 +1,7 @@
 node_modules/
 dist/
 public/js/
+public/app/app.js*
 coverage/
 .env
 *.log

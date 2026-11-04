@@ -5,6 +5,7 @@ import type { AllomaService } from "../services/alloma.service.js";
 import { AllomaBot, BOT_COMMANDS } from "./alloma-bot.js";
 import { botDescription, botShortDescription } from "./format.js";
 import { GroqClient } from "./groq.js";
+import { createMiniAppChatHandler, MINIAPP_PATH } from "./miniapp.js";
 import { TelegramApi, type TgUpdate } from "./telegram-api.js";
 
 export const TELEGRAM_WEBHOOK_PATH = "/telegram/webhook";
@@ -13,6 +14,8 @@ export interface TelegramRuntime {
   mode: "webhook" | "polling";
   bot: AllomaBot;
   webhookHandler: RequestHandler;
+  /** Mini App suhbat API'si (POST /api/miniapp/chat). */
+  miniAppHandler: RequestHandler;
   start(): Promise<void>;
   stop(): void;
 }
@@ -112,18 +115,24 @@ export function createTelegramRuntime(service: AllomaService): TelegramRuntime |
     : undefined;
   if (!aiClient) console.warn("[bot] GROQ_API_KEY yo'q — AI javoblari o'chiq, buyruqlar ishlaydi");
 
+  // Telegram Mini App faqat https manzilda ochiladi.
+  const miniAppUrl = env.publicUrl?.startsWith("https://") ? `${env.publicUrl}${MINIAPP_PATH}` : undefined;
+  const identity = { name: env.BOT_NAME, creator: env.BOT_CREATOR };
+
   const bot = new AllomaBot({
     api,
     service,
     ai: aiClient,
     siteUrl: env.publicUrl,
-    identity: { name: env.BOT_NAME, creator: env.BOT_CREATOR },
+    identity,
+    miniAppUrl,
     partnerBot: env.PARTNER_BOT_USERNAME,
   });
   const secret =
     env.TELEGRAM_WEBHOOK_SECRET ?? createHash("sha256").update(`alloma-ai:${token}`).digest("hex").slice(0, 48);
 
   const webhookHandler = createWebhookHandler(bot, secret);
+  const miniAppHandler = createMiniAppChatHandler({ botToken: token, service, ai: aiClient, identity });
 
   let polling = false;
 
@@ -131,6 +140,7 @@ export function createTelegramRuntime(service: AllomaService): TelegramRuntime |
     mode,
     bot,
     webhookHandler,
+    miniAppHandler,
 
     async start() {
       // O'z id va username'imiz: guruhda @mention/reply'ni aniqlash va o'z xabarlarimizni e'tiborsiz qoldirish uchun.
@@ -149,13 +159,21 @@ export function createTelegramRuntime(service: AllomaService): TelegramRuntime |
         console.warn("[bot] setMyName:", err.message),
       );
       // Profil tavsiflari ham kod bilan boshqariladi (har deploy'da to'g'ri holatda bo'ladi).
-      const identity = { name: env.BOT_NAME, creator: env.BOT_CREATOR };
       await api
         .call("setMyDescription", { description: botDescription(identity, env.publicUrl) })
         .catch((err: Error) => console.warn("[bot] setMyDescription:", err.message));
       await api
         .call("setMyShortDescription", { short_description: botShortDescription(identity) })
         .catch((err: Error) => console.warn("[bot] setMyShortDescription:", err.message));
+
+      // Chat pastidagi menyu tugmasi — Mini App (fanlar).
+      if (miniAppUrl) {
+        await api
+          .call("setChatMenuButton", {
+            menu_button: { type: "web_app", text: "📚 Fanlar", web_app: { url: miniAppUrl } },
+          })
+          .catch((err: Error) => console.warn("[bot] setChatMenuButton:", err.message));
+      }
 
       if (mode === "webhook") {
         const url = `${env.publicUrl}${TELEGRAM_WEBHOOK_PATH}`;

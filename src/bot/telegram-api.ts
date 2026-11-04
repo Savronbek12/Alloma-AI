@@ -42,6 +42,8 @@ export interface InlineButton {
   text: string;
   callback_data?: string;
   url?: string;
+  /** Telegram Mini App (faqat shaxsiy chatda ishlaydi). */
+  web_app?: { url: string };
 }
 
 /** Bot faqat shu interfeysga bog'liq — testlarda soxta (fake) amalga oshirish beriladi. */

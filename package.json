@@ -8,12 +8,13 @@
     "node": ">=20.12"
   },
   "scripts": {
-    "dev": "npm run build:client && concurrently -k -n server,client -c cyan,magenta \"npm:dev:server\" \"npm:dev:client\"",
+    "dev": "npm run build:client && concurrently -k -n server,client,miniapp -c cyan,magenta,yellow \"npm:dev:server\" \"npm:dev:client\" \"npm:dev:miniapp\"",
     "dev:server": "tsx watch src/server.ts",
     "dev:client": "esbuild client/src/main.ts --bundle --format=esm --sourcemap --target=es2022 --outfile=public/js/app.js --watch=forever",
+    "dev:miniapp": "esbuild client/miniapp/main.ts --bundle --format=esm --sourcemap --target=es2022 --outfile=public/app/app.js --watch=forever",
     "build": "npm run build:server && npm run build:client",
     "build:server": "tsc -p tsconfig.build.json",
-    "build:client": "esbuild client/src/main.ts --bundle --format=esm --minify --target=es2022 --outfile=public/js/app.js",
+    "build:client": "esbuild client/src/main.ts --bundle --format=esm --minify --target=es2022 --outfile=public/js/app.js && esbuild client/miniapp/main.ts --bundle --format=esm --minify --target=es2022 --outfile=public/app/app.js",
     "start": "node dist/src/server.js",
     "typecheck": "tsc --noEmit && tsc -p client/tsconfig.json",
     "images:fetch": "tsx scripts/fetch-images.ts",

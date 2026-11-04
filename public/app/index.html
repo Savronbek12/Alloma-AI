@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+    <title>Alloma AI — Fanlar</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="/app/app.css" />
+  </head>
+  <body>
+    <!-- Fanlar ro'yxati -->
+    <main id="home" class="screen">
+      <header class="hero">
+        <p class="hero__eyebrow">Alloma AI</p>
+        <h1 class="hero__title">Qaysi fandan o'rganamiz?</h1>
+        <p class="hero__sub">Fanni tanlang va savolingizni yozing — tushuntirib beraman, masalalarni bosqichma-bosqich yechaman.</p>
+      </header>
+      <ul id="subjects" class="grid" aria-label="Fanlar"></ul>
+    </main>
+
+    <!-- Tanlangan fan bo'yicha suhbat -->
+    <section id="chat" class="screen chat" hidden>
+      <header class="chat__head">
+        <button id="back" class="icon-btn" type="button" aria-label="Fanlarga qaytish">‹</button>
+        <span id="chat-emoji" class="chat__emoji" aria-hidden="true"></span>
+        <h2 id="chat-title" class="chat__title"></h2>
+        <button id="reset" class="text-btn" type="button">Yangi suhbat</button>
+      </header>
+
+      <div id="log" class="log" aria-live="polite">
+        <div id="intro" class="intro">
+          <p class="intro__text">Shu fan bo'yicha istalgan savolni bering yoki namunani tanlang:</p>
+          <div id="examples" class="examples"></div>
+        </div>
+      </div>
+
+      <form id="composer" class="composer" autocomplete="off">
+        <textarea id="input" rows="1" maxlength="500" placeholder="Savolingizni yozing…" aria-label="Savol"></textarea>
+        <button id="send" class="send" type="submit" aria-label="Yuborish">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z" fill="currentColor" /></svg>
+        </button>
+      </form>
+    </section>
+
+    <script type="module" src="/app/app.js"></script>
+  </body>
+</html>
