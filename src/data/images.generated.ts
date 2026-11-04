@@ -180,6 +180,14 @@ export const allomaImages: Readonly<Record<string, AllomaImage>> = {
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Timur_reconstruction03.jpg",
     "wikiPage": "https://en.wikipedia.org/wiki/Timur"
   },
+  "amiriy-umarxon": {
+    "src": "/images/allomalar/amiriy-umarxon.jpg",
+    "alt": "Amiriy (Umarxon) qabri, Qo'qon",
+    "author": "Jamshid Nurkulov",
+    "license": "CC BY-SA 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sayyid_Muhammad_Umarxon_qabri.jpg",
+    "wikiPage": "https://uz.wikipedia.org/wiki/Umarxon"
+  },
   "bahouddin-naqshband": {
     "src": "/images/allomalar/bahouddin-naqshband.jpg",
     "alt": "Bahouddin Naqshband tasviri",
@@ -350,6 +358,14 @@ export const allomaImages: Readonly<Record<string, AllomaImage>> = {
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ulugh_Beg,_Timurid_painting_1425-50.jpg",
     "wikiPage": "https://en.wikipedia.org/wiki/Ulugh_Beg"
   },
+  "muhammad-aminxoja-muqimiy": {
+    "src": "/images/allomalar/muhammad-aminxoja-muqimiy.jpg",
+    "alt": "Muhammad Aminxo'ja Muqimiy tasviri",
+    "author": "Skylord92",
+    "license": "CC BY-SA 3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%D0%9C%D1%83%D0%BA%D1%83%D0%BC%D0%B8%D0%B9.jpg",
+    "wikiPage": "https://ru.wikipedia.org/wiki/%D0%9C%D1%83%D0%BA%D0%B8%D0%BC%D0%B8"
+  },
   "muhammad-ibn-muso-al-xorazmiy": {
     "src": "/images/allomalar/muhammad-ibn-muso-al-xorazmiy.jpg",
     "alt": "Muhammad ibn Muso al-Xorazmiy tasviri",
@@ -431,6 +447,14 @@ export const allomaImages: Readonly<Record<string, AllomaImage>> = {
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Stamps_of_Uzbekistan,_2006-097.jpg",
     "wikiPage": "https://en.wikipedia.org/wiki/Said_Ahmad"
   },
+  "toshmuhammad-qori-niyoziy": {
+    "src": "/images/allomalar/toshmuhammad-qori-niyoziy.jpg",
+    "alt": "Toshmuhammad Qori-Niyoziy tasviri",
+    "author": "Unknown author",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%D0%A2%D0%B0%D1%88%D0%BC%D1%83%D1%85%D0%B0%D0%BC%D0%B5%D0%B4_%D0%9D%D0%B8%D1%8F%D0%B7%D0%BE%D0%B2%D0%B8%D1%87_%D0%9A%D0%B0%D1%80%D1%8B-%D0%9D%D0%B8%D1%8F%D0%B7%D0%BE%D0%B2.jpg",
+    "wikiPage": "https://ru.wikipedia.org/wiki/%D0%9A%D0%B0%D1%80%D1%8B-%D0%9D%D0%B8%D1%8F%D0%B7%D0%BE%D0%B2%2C_%D0%A2%D0%B0%D1%88%D0%BC%D1%83%D1%85%D0%B0%D0%BC%D0%B5%D0%B4_%D0%9D%D0%B8%D1%8F%D0%B7%D0%BE%D0%B2%D0%B8%D1%87"
+  },
   "toshmuhammad-sarimsoqov": {
     "src": "/images/allomalar/toshmuhammad-sarimsoqov.jpg",
     "alt": "Toshmuhammad Sarimsoqov tasviri",
@@ -446,6 +470,14 @@ export const allomaImages: Readonly<Record<string, AllomaImage>> = {
     "license": "CC BY-SA 4.0",
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Khwaja_Ubaidullah_Ahrar,_Mughal_Archives,_British_Museum.png",
     "wikiPage": "https://en.wikipedia.org/wiki/Khwaja_Ahrar"
+  },
+  "yahyo-gulomov": {
+    "src": "/images/allomalar/yahyo-gulomov.jpg",
+    "alt": "Yahyo G'ulomov tasviri",
+    "author": "Post of Uzbekistan",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Stamps_of_Uzbekistan,_2008-20.jpg",
+    "wikiPage": "https://uz.wikipedia.org/wiki/Yahyo_G%CA%BBulomov"
   },
   "yunus-rajabiy": {
     "src": "/images/allomalar/yunus-rajabiy.jpg",
