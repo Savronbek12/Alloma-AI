@@ -7,6 +7,7 @@ import { env } from "./config/env.js";
 import type { Container } from "./container.js";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler.js";
 import { requestLogger } from "./middlewares/request-logger.js";
+import { createSeoRouter } from "./seo.js";
 import { createApiRouter } from "./routes/index.js";
 
 export function createApp(container: Container): Express {
@@ -39,6 +40,16 @@ export function createApp(container: Container): Express {
 
   app.use("/api", createApiRouter(container.allomaService));
   app.use("/api", notFoundHandler);
+
+  // Bosh sahifa (SEO teglari bilan), robots.txt, sitemap.xml — statik fayllardan oldin.
+  app.use(
+    createSeoRouter({
+      publicDir: env.publicDir,
+      siteUrl: env.publicUrl,
+      googleVerification: env.GOOGLE_SITE_VERIFICATION,
+      botUsername: () => container.telegram?.bot.username,
+    }),
+  );
 
   app.use(
     express.static(env.publicDir, {

@@ -154,6 +154,11 @@ export class AllomaBot {
     this.self = self;
   }
 
+  /** Botning Telegram username'i (getMe'dan keyin ma'lum bo'ladi). */
+  get username(): string | undefined {
+    return this.self?.username;
+  }
+
   private now(): number {
     return this.deps.now?.() ?? Date.now();
   }

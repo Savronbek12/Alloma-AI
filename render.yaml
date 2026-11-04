@@ -23,3 +23,6 @@ services:
         sync: false
       - key: GROQ_API_KEY
         sync: false
+      # Google Search Console tasdiqlash kodi (ixtiyoriy)
+      - key: GOOGLE_SITE_VERIFICATION
+        sync: false

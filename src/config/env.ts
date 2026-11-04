@@ -32,6 +32,9 @@ const envSchema = z.object({
   /** Sayt manzili (bot rasmlari va havolalari uchun). Render'da RENDER_EXTERNAL_URL ishlatiladi. */
   PUBLIC_URL: z.string().url().optional(),
 
+  /** Google Search Console tasdiqlash kodi (meta teg content'i yoki google….html fayl nomi). */
+  GOOGLE_SITE_VERIFICATION: secret,
+
   // --- Telegram bot ---
   TELEGRAM_BOT_TOKEN: secret,
   /** Webhook so'rovlarini tekshirish uchun maxfiy kalit (berilmasa tokendan hosil qilinadi). */
