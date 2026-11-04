@@ -84,9 +84,9 @@ describe("Kichik stikerli javoblar", () => {
     expect(api.texts()).toEqual([answer]);
   });
 
-  it("tizim ko'rsatmasida stiker qoidasi va o'rtacha uzunlik bor", () => {
+  it("tizim ko'rsatmasida qisqa yozish va kam emoji qoidasi bor", () => {
     const [system] = buildAiMessages("Salom", service.all(), []);
-    expect(system?.content).toContain("[stiker:salom]");
-    expect(system?.content).toContain("O'RTACHA");
+    expect(system?.content).toContain("Qisqa yoz");
+    expect(system?.content).toContain("Emoji kam ishlat");
   });
 });

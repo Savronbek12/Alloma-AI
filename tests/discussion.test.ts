@@ -114,6 +114,9 @@ describe("1 soatlik munozara", () => {
     const system = ai.calls.at(-1)?.[0]?.content ?? "";
     expect(system).toContain("«Ulug'bek rasadxonasi»");
     expect(system).toMatch(/qolgan vaqt: ~\d+ daqiqa/);
+    expect(system).toContain("GURUHDAGI ILMIY SUHBAT");
+    expect(system).toContain("Hozirgi suhbat vaqti: 1-daqiqa");
+    expect(system).toContain("0–5 daqiqa");
     expect(ai.calls.at(-1)?.at(-1)?.content).toBe("Sardor AI (bot): Rasadxona o'z davrining eng yirigi edi.");
   });
 

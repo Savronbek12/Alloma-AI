@@ -147,8 +147,8 @@ describe("AI so'rovi hajmi (bepul tarif limiti)", () => {
     const [system] = buildAiMessages("Navoiy qayerda tug'ilgan?", service.all(), relevant);
     expect(system?.content).toContain("### Alisher Navoiy");
     expect(system?.content).not.toContain("O'rol Tansiqboyev");
-    // ~4 belgi ≈ 1 token: tizim ko'rsatmasi ~1500 tokendan oshmasin.
-    expect(system?.content.length ?? 0).toBeLessThan(6000);
+    // «Jonli suhbatdosh» personaji bilan ~2500 tokendan oshmasin (Groq bepul tarif TPM limiti).
+    expect(system?.content.length ?? 0).toBeLessThan(8500);
   });
 
   it("savolda davr tilga olinsa — o'sha davr ro'yxati qo'shiladi", () => {
@@ -176,10 +176,14 @@ describe("AI so'rovi hajmi (bepul tarif limiti)", () => {
     expect(codeAnswerToHtml("```js\nlet x = 1;")).toBe('<pre><code class="language-js">let x = 1;</code></pre>');
   });
 
-  it("tizim ko'rsatmasi botga me'yorida, xavfsiz hazil qilishni aytadi", () => {
+  it("«Jonli suhbatdosh» personaji: qisqa, jonli, hazil, halollik", () => {
     const system = buildAiMessages("salom", service.all(), [])[0]?.content ?? "";
-    expect(system).toContain("12. HAZIL");
-    expect(system).toContain("jiddiy mavzularda");
+    expect(system).toContain("TELEGRAMDA YOZADIGAN ODAMDEK YOZ");
+    expect(system).toContain("HAZIL QILISH");
+    expect(system).toContain("hazilni to'xtat");
+    expect(system).toContain("aslida men AI'man");
+    expect(system).toContain("«Albatta!»");
+    expect(system).not.toContain("[...]");
   });
 
   it("tizim ko'rsatmasi botni barcha fanlar bo'yicha mutaxassis qiladi", () => {

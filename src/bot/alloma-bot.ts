@@ -555,6 +555,7 @@ export class AllomaBot {
       topic: s.topic,
       partnerName: this.partnerName(),
       minutesLeft: Math.max(0, Math.round((s.endsAt - now) / 60_000)),
+      minutesElapsed: Math.max(0, Math.round((now - (s.endsAt - DISCUSSION_MAX_MS)) / 60_000)),
     };
   }
 
