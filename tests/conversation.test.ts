@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AI_COOLDOWN_MS, AllomaBot } from "../src/bot/alloma-bot.js";
 import { ConversationStore } from "../src/bot/conversation.js";
-import { buildAiMessages, detectEra, stripMarkdown } from "../src/bot/format.js";
+import { buildAiMessages, codeAnswerToHtml, detectEra, stripMarkdown } from "../src/bot/format.js";
 import { GroqClient, type AiClient, type ChatMessage } from "../src/bot/groq.js";
 import type { BotApi, TgUpdate } from "../src/bot/telegram-api.js";
 import { createContainer } from "../src/container.js";
@@ -109,6 +109,32 @@ describe("AI so'rovi hajmi (bepul tarif limiti)", () => {
 
   it("AI ro'yxatidagi * va - belgilari • ga aylanadi", () => {
     expect(stripMarkdown("Jadidlar:\n*   Behbudiy\n- Fitrat")).toBe("Jadidlar:\n• Behbudiy\n• Fitrat");
+  });
+
+  it("kod bloklari stripMarkdown'da buzilmaydi (# izoh, * operator saqlanadi)", () => {
+    const text = "**Usul:**\n```python\n# izoh\nx = a * b\n```\n- tayyor";
+    expect(stripMarkdown(text)).toBe("Usul:\n```python\n# izoh\nx = a * b\n```\n• tayyor");
+  });
+
+  it("kodli javob Telegram HTML <pre> ga aylanadi, qolgani escape qilinadi", () => {
+    const html = codeAnswerToHtml("a < b:\n```python\nif a < b:\n    print('x')\n```\ntamom");
+    expect(html).toBe(
+      "a &lt; b:\n<pre><code class=\"language-python\">if a &lt; b:\n    print('x')</code></pre>\ntamom",
+    );
+    // Qisqartirilib yopilmay qolgan blok ham to'g'ri yopiladi.
+    expect(codeAnswerToHtml("```js\nlet x = 1;")).toBe('<pre><code class="language-js">let x = 1;</code></pre>');
+  });
+
+  it("tizim ko'rsatmasi botni barcha fanlar bo'yicha mutaxassis qiladi", () => {
+    const [system] = buildAiMessages("Fotosintez nima?", service.all(), []);
+    expect(system?.content).toContain("BARCHA fanlar bo'yicha mutaxassis");
+    expect(system?.content).toMatch(/matematika, fizika, kimyo/);
+  });
+
+  it("botga kodli javob HTML parse_mode bilan yuboriladi", async () => {
+    const { api, bot } = setup(["Mana:\n```python\nprint(1 < 2)\n```"]);
+    await bot.handleUpdate(msg("Pythonda solishtirish"));
+    expect(api.texts.at(-1)).toBe("Mana:\n<pre><code class=\"language-python\">print(1 &lt; 2)</code></pre>");
   });
 
   it("detectEra turli yozuvlarni taniydi", () => {

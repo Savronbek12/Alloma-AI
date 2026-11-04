@@ -139,7 +139,7 @@ export class GroqClient implements AiClient {
         Authorization: `Bearer ${this.options.apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ model, messages, temperature: 0.3, max_tokens: 500 }),
+      body: JSON.stringify({ model, messages, temperature: 0.3, max_tokens: 1200 }),
       signal: AbortSignal.timeout(30_000),
     });
     const body = (await res.json().catch(() => null)) as {

@@ -19,6 +19,8 @@ import {
   identityAnswer,
   isIdentityQuestion,
   stripMarkdown,
+  codeAnswerToHtml,
+  hasCodeBlock,
   truncate,
   type BotIdentity,
   type DiscussionContext,
@@ -84,9 +86,11 @@ export const BOT_COMMANDS = [
 
 const helpText = (identity: BotIdentity, partnerBot?: string) =>
   [
-    `Salom! Men — <b>${escapeHtml(identity.name)}</b>, o'zbek allomalari haqida bot.`,
+    `Salom! Men — <b>${escapeHtml(identity.name)}</b>: barcha fanlar bo'yicha yordamchi va o'zbek allomalari bilimdoni.`,
     "",
-    "Men bilan bemalol suhbatlashing — oldingi gaplarimizni eslab qolaman. Masalan:",
+    "Istalgan fandan savol bering — matematika, fizika, kimyo, biologiya, tarix, adabiyot, dasturlash, tillar va boshqalar. Oldingi gaplarimizni eslab qolaman. Masalan:",
+    "• <i>x² − 5x + 6 = 0 tenglamani yech</i>",
+    "• <i>Fotosintez qanday jarayon?</i>",
     "• <i>Algebrani kim asoslagan?</i>",
     "• <i>Navoiy qayerda tug'ilgan?</i> → <i>Uning asarlari-chi?</i>",
     "• <i>Temuriylar davri olimlari kimlar?</i>",
@@ -657,9 +661,11 @@ export class AllomaBot {
       await this.sleep(options.minWaitMs);
     }
 
-    // AI matni HTML sifatida emas, oddiy matn sifatida yuboriladi (formatlash xatolari bo'lmasligi uchun).
+    // AI matni oddiy matn sifatida yuboriladi (formatlash xatolari bo'lmasligi uchun);
+    // kod bo'lsa — HTML <pre> bloklari bilan (hammasi escape qilingan).
+    const body = truncate(answer, 4000);
     return this.deliver(ctx, "sendMessage", {
-      text: truncate(answer, 4000),
+      ...(hasCodeBlock(body) ? { text: codeAnswerToHtml(body), parse_mode: "HTML" } : { text: body }),
       link_preview_options: { is_disabled: true },
       ...(mentioned.length && !fromBot
         ? {

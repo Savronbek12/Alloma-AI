@@ -47,14 +47,51 @@ export function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/** AI javobidagi Markdown belgilarini olib tashlaydi (javob oddiy matn sifatida yuboriladi). */
-export function stripMarkdown(text: string): string {
+/** ```kod``` bloklari (yopilmagan oxirgi blok ham — javob qisqartirilgan bo'lishi mumkin). */
+const CODE_FENCE = /```[^\n`]*\n?[\s\S]*?(?:```|$)/g;
+
+function stripMarkdownProse(text: string): string {
   return text
     .replace(/\*\*(.+?)\*\*/gs, "$1")
     .replace(/__(.+?)__/gs, "$1")
     .replace(/^#{1,6}\s+/gm, "")
-    .replace(/^\s*[*-]\s+/gm, "• ")
-    .replace(/`([^`]+)`/g, "$1");
+    .replace(/^[ \t]*[*-][ \t]+/gm, "• ")
+    .replace(/`([^`\n]+)`/g, "$1");
+}
+
+/**
+ * AI javobidagi Markdown belgilarini olib tashlaydi. Kod bloklari (```) o'zgarishsiz qoladi —
+ * ulardagi `#` izohlar yoki `*` operatorlar buzilmasligi uchun.
+ */
+export function stripMarkdown(text: string): string {
+  let out = "";
+  let last = 0;
+  for (const m of text.matchAll(CODE_FENCE)) {
+    out += stripMarkdownProse(text.slice(last, m.index)) + m[0];
+    last = m.index + m[0].length;
+  }
+  return out + stripMarkdownProse(text.slice(last));
+}
+
+export function hasCodeBlock(text: string): boolean {
+  return text.includes("```");
+}
+
+/** Kod bloklari bor javob: Telegram HTML — kod <pre><code> ichida, qolgani escape qilingan. */
+export function codeAnswerToHtml(text: string): string {
+  let out = "";
+  let last = 0;
+  for (const m of text.matchAll(CODE_FENCE)) {
+    out += escapeHtml(text.slice(last, m.index));
+    const fence = /^```([^\n`]*)\n?([\s\S]*?)(?:```)?$/.exec(m[0]);
+    const lang = (fence?.[1] ?? "").trim().replace(/[^\w+#-]/g, "");
+    const code = (fence?.[2] ?? "").replace(/\n$/, "");
+    out += lang
+      ? `<pre><code class="language-${lang}">${escapeHtml(code)}</code></pre>`
+      : `<pre>${escapeHtml(code)}</pre>`;
+    last = m.index + m[0].length;
+  }
+  return out + escapeHtml(text.slice(last));
 }
 
 export function truncate(text: string, max: number): string {
@@ -139,7 +176,7 @@ export function buildAiMessages(
     .join("\n\n");
 
   const system = [
-    `Sening isming — ${identity.name}. Seni ${identity.creator} yaratgan. Sen «Alloma-AI» loyihasining Telegram botisan: samimiy, bilimdon suhbatdosh, ayniqsa o'zbek allomalari bo'yicha mutaxassis.`,
+    `Sening isming — ${identity.name}. Seni ${identity.creator} yaratgan. Sen «Alloma-AI» loyihasining Telegram botisan: samimiy suhbatdosh va BARCHA fanlar bo'yicha mutaxassis ustoz — matematika, fizika, kimyo, biologiya, tibbiyot, informatika va dasturlash, tarix, geografiya, adabiyot, tilshunoslik va tillar, falsafa, iqtisodiyot, huquq, astronomiya, san'at va boshqalar. O'zbek allomalari bo'yicha esa alohida bilimga egasan.`,
     `Isming yoki seni kim yaratgani so'ralsa, aynan shunday javob ber: "${identityAnswer(identity)}" O'zingni boshqa model, kompaniya yoki dastur nomi bilan atama.`,
     "",
     "Suhbat qoidalari:",
@@ -147,9 +184,9 @@ export function buildAiMessages(
     "2. Oldingi xabarlarni hisobga ol: «u», «uning», «o'sha» kabi so'zlar suhbatda oldin tilga olingan allomaga ishora qilishi mumkin.",
     "3. Foydalanuvchi qaysi tilda yozsa, o'sha tilda javob ber (standart — o'zbek tili, lotin yozuvi).",
     "4. Allomalar haqidagi fakt, sana va asarlarni FAQAT pastdagi MA'LUMOTLARdan ol. Ma'lumotlarda yo'q tafsilot qo'shma: asar qachon, necha qismda, qaysi asrda yozilgani kabi narsalarni o'zingdan to'qima. Agar so'ralgan tafsilot ma'lumotlarda bo'lmasa, «bu haqda ma'lumotim yo'q» deb ayt.",
-    "5. Boshqa mavzularda umumiy bilimingdan qisqa javob berishing mumkin; ishonching komil bo'lmasa, shuni ayt. Mos kelsa, suhbatni allomalarga bog'la, lekin majburlama.",
+    "5. Har qanday fan bo'yicha savolga mutaxassis darajasida, aniq va to'g'ri javob ber: tushunchani sodda tilda tushuntir, kerak bo'lsa formula, misol yoki bosqichma-bosqich yechim keltir (masalalarni oxirigacha yech va javobni aniq ko'rsat). Kod so'ralsa — ishlaydigan kod yoz. Ishonching komil bo'lmasa yoki ma'lumot o'zgaruvchan bo'lsa (narx, so'nggi yangiliklar), shuni ochiq ayt — to'qima. Mos kelsa, mavzuni allomalarga bog'lash mumkin, lekin majburlama.",
     "6. Zararli, xavfli yoki haqoratli so'rovlarni muloyimlik bilan rad et.",
-    "7. Javob qisqa bo'lsin (odatda 1–3 qisqa paragraf). Markdown belgilari (*, #, _) ishlatma.",
+    "7. Javob hajmi savolga mos bo'lsin: oddiy savolga 1–3 jumla, o'quv yoki murakkab savolga batafsilroq (lekin 3500 belgidan oshmasin). Markdown belgilari (*, #, _) ishlatma; ro'yxat uchun • yoki 1), 2) ishlat; formulalarni oddiy matnda yoz (masalan: x² + 2x = 0, E = mc²).",
     "8. Allomalar nomini aynan ro'yxatdagidek yoz.",
     "9. Guruhda xabarlar «Ism: matn» ko'rinishida keladi, botlarniki — «Ism (bot): matn». Javobingni ism yoki prefiks bilan boshlama, faqat javob matnini yoz.",
     "10. Boshqa bot (masalan, Sardor AI) bilan suhbatda qisqa (1–3 jumla), aniq va muloyim gapir; uning savoliga javob ber, kerak bo'lsa bitta qarshi savol ber. Savollarni takrorlama; suhbat mavzusi tugasa, minnatdorchilik bildirib xayrlash.",
