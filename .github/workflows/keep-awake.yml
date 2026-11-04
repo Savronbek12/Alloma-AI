@@ -1,0 +1,34 @@
+# Tashqi zaxira himoya: Render bepul tarifi saytni uxlatib qo'ysa, uni uyg'otadi.
+# Asosiy himoya — server ichidagi keep-alive (src/services/keep-alive.ts, har 10 daqiqa).
+# Bu workflow faqat zaxira: server biror sabab bilan baribir uxlasa, 30 daqiqa ichida uyg'otadi,
+# so'ng ichki keep-alive yana ishga tushadi.
+#
+# Xarajat: private repo uchun oyiga ~1440 daqiqa (bepul chegara — 2000 daqiqa).
+name: Saytni uyg'oq ushlash
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+env:
+  SITE_URL: https://alloma-ai.onrender.com
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: /api/health ga so'rov
+        run: |
+          for attempt in 1 2 3; do
+            if curl -fsS -m 90 -A "alloma-ai-keep-awake" "$SITE_URL/api/health"; then
+              echo
+              echo "Sayt uyg'oq (urinish $attempt)"
+              exit 0
+            fi
+            echo "Javob yo'q, 20 s dan keyin qayta urinish ($attempt/3)"
+            sleep 20
+          done
+          echo "::error::Sayt 3 urinishda ham javob bermadi: $SITE_URL"
+          exit 1
