@@ -27,9 +27,10 @@ export class ConversationStore {
   private readonly maxChats: number;
 
   constructor(options: ConversationOptions = {}) {
-    // 8 ta xabar (4 savol-javob) — bepul tarifning daqiqalik token limitini tejash uchun.
-    this.maxMessages = options.maxMessages ?? 8;
-    this.ttlMs = options.ttlMs ?? 30 * 60_000;
+    // 10 ta xabar (5 savol-javob) — bepul tarifning daqiqalik token limitini tejash uchun.
+    this.maxMessages = options.maxMessages ?? 10;
+    // 70 daqiqa — 1 soatlik munozara davomida xotira saqlanib qolishi uchun.
+    this.ttlMs = options.ttlMs ?? 70 * 60_000;
     this.maxChats = options.maxChats ?? 1000;
   }
 

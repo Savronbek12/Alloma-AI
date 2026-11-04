@@ -66,7 +66,14 @@ export class BotGuard {
   }
 
   /** Boshqa botning xabariga javob berish mumkinmi va qancha kutish kerak. */
-  checkBotMessage(chatId: number, botId: number, text: string, now: number): BotMessageDecision {
+  checkBotMessage(
+    chatId: number,
+    botId: number,
+    text: string,
+    now: number,
+    /** Munozara sessiyasida "4 ta ketma-ket" o'rniga sessiya cheklovlari ishlaydi. */
+    options: { ignoreTurnLimit?: boolean } = {},
+  ): BotMessageDecision {
     const s = this.state(chatId);
     let peer = s.peers.get(botId);
     if (!peer) {
@@ -81,7 +88,7 @@ export class BotGuard {
     const duplicate = peer.recentTexts.has(hash);
     peer.recentTexts.set(hash, now);
 
-    if (s.botTurns >= MAX_BOT_TURNS) return { allow: false, reason: "turn-limit" };
+    if (!options.ignoreTurnLimit && s.botTurns >= MAX_BOT_TURNS) return { allow: false, reason: "turn-limit" };
     if (duplicate) return { allow: false, reason: "duplicate" };
     return { allow: true, waitMs: Math.max(0, peer.lastReplyAt + BOT_REPLY_INTERVAL_MS - now) };
   }

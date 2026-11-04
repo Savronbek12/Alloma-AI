@@ -104,12 +104,20 @@ export function detectEra(text: string): EraId | undefined {
  * Bepul tarifning daqiqalik token limitiga sig'ishi uchun barcha 103 alloma ro'yxati yuborilmaydi.
  * Model faqat shu ma'lumotlarga tayanishi kerak — o'ylab topmasligi uchun.
  */
+export interface DiscussionContext {
+  topic: string;
+  partnerName: string;
+  /** Sessiya oxiriga qolgan daqiqalar. */
+  minutesLeft: number;
+}
+
 export function buildAiMessages(
   question: string,
   all: readonly Alloma[],
   relevant: readonly Alloma[],
   identity: BotIdentity = DEFAULT_IDENTITY,
   history: readonly ChatMessage[] = [],
+  discussion?: DiscussionContext,
 ): ChatMessage[] {
   const era = detectEra(question);
   const eraList = era
@@ -145,6 +153,22 @@ export function buildAiMessages(
     "8. Allomalar nomini aynan ro'yxatdagidek yoz.",
     "9. Guruhda xabarlar «Ism: matn» ko'rinishida keladi, botlarniki — «Ism (bot): matn». Javobingni ism yoki prefiks bilan boshlama, faqat javob matnini yoz.",
     "10. Boshqa bot (masalan, Sardor AI) bilan suhbatda qisqa (1–3 jumla), aniq va muloyim gapir; uning savoliga javob ber, kerak bo'lsa bitta qarshi savol ber. Savollarni takrorlama; suhbat mavzusi tugasa, minnatdorchilik bildirib xayrlash.",
+    "",
+    ...(discussion
+      ? [
+          "",
+          `MUNOZARA REJIMI: sen ${discussion.partnerName} bilan «${discussion.topic}» mavzusida jonli munozara olib boryapsan (qolgan vaqt: ~${discussion.minutesLeft} daqiqa).`,
+          "- Odamdek gapir: o'z fikringni ayt, sherigingning fikriga munosabat bildir (rozi bo'l yoki asosli e'tiroz qil), misol keltir, ba'zan qarshi savol ber.",
+          "- Faqat shu mavzuda qol; chetga chiqsa, muloyimlik bilan mavzuga qaytar. Har javobda yangi fikr yoki jihat qo'sh — oldingi gaplarni takrorlama.",
+          "- 1–3 jumla, so'zlashuv ohangida. Ro'yxat va sarlavhalar ishlatma.",
+          "- Har javobni savol bilan TUGATMA: taxminan har ikkinchi-uchinchi javobda savol ber, qolganlarida shunchaki fikr bildir yoki misol keltir.",
+          "- Bir xil iboralarni («Sencha», «Roziman», «Qiziq fikr») ketma-ket takrorlama — gapni har xil boshla.",
+          "- Allomalar haqidagi faktlarni faqat MA'LUMOTLARdan ol; boshqa narsani fikr sifatida ayt («menimcha», «ehtimol»).",
+          discussion.minutesLeft <= 2
+            ? "- Vaqt deyarli tugadi: munozarani qisqa xulosa bilan yakunla va xayrlash."
+            : "",
+        ]
+      : []),
     "",
     `MA'LUMOTLAR (bazada jami ${all.length} ta alloma; quyida faqat shu suhbatga mos qismi berilgan. To'liq ro'yxat uchun /davrlar buyrug'ini tavsiya qil.)`,
     eraList,

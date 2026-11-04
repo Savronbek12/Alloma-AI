@@ -146,10 +146,11 @@ describe("ConversationStore", () => {
     expect(store.get(1, 2000).recentSlugs).toHaveLength(0);
   });
 
-  it("standart holatda oxirgi 8 ta xabar saqlanadi", () => {
+  it("standart holatda oxirgi 10 ta xabar va 1 soatdan ortiq saqlanadi", () => {
     const store = new ConversationStore();
-    for (let i = 1; i <= 6; i++) store.append(1, `s${i}`, `j${i}`, [], i);
-    expect(store.get(1, 7).messages).toHaveLength(8);
+    for (let i = 1; i <= 7; i++) store.append(1, `s${i}`, `j${i}`, [], i);
+    expect(store.get(1, 8).messages).toHaveLength(10);
+    expect(store.get(1, 65 * 60_000).messages).toHaveLength(10);
   });
 
   it("faqat oxirgi N ta xabarni saqlaydi", () => {

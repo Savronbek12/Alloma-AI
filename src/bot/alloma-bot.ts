@@ -5,6 +5,12 @@ import { normalizeForSearch } from "../utils/text.js";
 import { BotGuard } from "./bot-guard.js";
 import { ConversationStore } from "./conversation.js";
 import {
+  DISCUSSION_MAX_MS,
+  DiscussionManager,
+  parseDiscussionRequest,
+  typingDelayMs,
+} from "./discussion.js";
+import {
   allomaButtonLabel,
   allomaCaption,
   buildAiMessages,
@@ -15,6 +21,7 @@ import {
   stripMarkdown,
   truncate,
   type BotIdentity,
+  type DiscussionContext,
 } from "./format.js";
 import type { AiClient } from "./groq.js";
 import type { BotApi, InlineButton, TgCallbackQuery, TgMessage, TgUpdate } from "./telegram-api.js";
@@ -46,6 +53,10 @@ export interface AllomaBotDeps {
   conversations?: ConversationStore;
   /** Bot-bot sikliga qarshi himoya va yuborish limitlari. */
   guard?: BotGuard;
+  /** Guruhdagi 1 soatlik munozara sessiyalari. */
+  discussions?: DiscussionManager;
+  /** Odamdek "yozish" kechikishi (testlarda o'chiriladi). */
+  humanLikeDelay?: boolean;
   log?: (message: string) => void;
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;
@@ -66,6 +77,8 @@ export const BOT_COMMANDS = [
   { command: "qidir", description: "Ism, shahar yoki asar bo'yicha qidirish" },
   { command: "davrlar", description: "Davrlar bo'yicha ko'rish" },
   { command: "yangi", description: "Suhbatni yangidan boshlash" },
+  { command: "muhokama", description: "Guruhda Sardor AI bilan mavzu muhokamasi (1 soatgacha)" },
+  { command: "toxtat", description: "Muhokamani to'xtatish" },
   { command: "yordam", description: "Bot imkoniyatlari" },
 ];
 
@@ -85,7 +98,13 @@ const helpText = (identity: BotIdentity, partnerBot?: string) =>
     "/davrlar — davrlar bo'yicha ko'rish",
     "/yangi — suhbatni yangidan boshlash",
     ...(partnerBot
-      ? ["", `Guruhda: <i>Sardor AI'dan Beruniy haqida so'ra</i> — men @${escapeHtml(partnerBot)} bilan suhbat boshlayman.`]
+      ? [
+          "",
+          "<b>Guruhda:</b>",
+          `• <i>Sardor AI'dan Beruniy haqida so'ra</i> — @${escapeHtml(partnerBot)} ga savol beraman.`,
+          `• <code>/muhokama Ibn Sino tibbiyoti</code> — @${escapeHtml(partnerBot)} bilan shu mavzuda 1 soatgacha munozara.`,
+          "• /toxtat — munozarani to'xtatish.",
+        ]
       : []),
   ].join("\n");
 
@@ -106,6 +125,7 @@ export class AllomaBot {
   private readonly conversations: ConversationStore;
   private readonly guard: BotGuard;
   private readonly sleep: (ms: number) => Promise<void>;
+  private readonly discussions: DiscussionManager;
   private self: BotSelf | undefined;
 
   constructor(private readonly deps: AllomaBotDeps) {
@@ -113,6 +133,7 @@ export class AllomaBot {
     this.identity = deps.identity ?? DEFAULT_IDENTITY;
     this.conversations = deps.conversations ?? new ConversationStore();
     this.guard = deps.guard ?? new BotGuard();
+    this.discussions = deps.discussions ?? new DiscussionManager();
     this.sleep = deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
     this.self = deps.self;
   }
@@ -188,7 +209,10 @@ export class AllomaBot {
     const ctx: ReplyContext = { chatId, isGroup, replyTo: isGroup ? msg.message_id : undefined };
     const text = this.stripOwnMention(raw);
 
-    if (text.startsWith("/")) return this.onCommand(ctx, text);
+    if (text.startsWith("/")) return this.onCommand(ctx, text, this.speakerLabel(msg));
+
+    const discussionTopic = this.deps.partnerBot && isGroup ? parseDiscussionRequest(text) : undefined;
+    if (discussionTopic) return this.startDiscussion(ctx, discussionTopic, this.speakerLabel(msg));
 
     const partnerTopic = this.deps.partnerBot && isGroup ? parseAskPartner(text) : undefined;
     if (partnerTopic) return this.askPartner(ctx, partnerTopic);
@@ -207,6 +231,13 @@ export class AllomaBot {
   private async onBotMessage(msg: TgMessage, raw: string): Promise<void> {
     const botId = msg.from?.id ?? 0;
     const chatId = msg.chat.id;
+
+    // Faol munozara sessiyasida sherik botning xabari — alohida (1 soatlik) qoidalar bilan.
+    const isPartner =
+      Boolean(this.deps.partnerBot) &&
+      msg.from?.username?.toLowerCase() === this.deps.partnerBot?.toLowerCase();
+    if (isPartner && this.discussions.peek(chatId)) return this.onDiscussionTurn(msg, raw);
+
     const decision = this.guard.checkBotMessage(chatId, botId, raw, this.now());
     if (!decision.allow) {
       this.log(`[bot] bot xabari o'tkazildi (${decision.reason}) chat=${chatId}`);
@@ -229,11 +260,25 @@ export class AllomaBot {
     if (sent) this.guard.recordBotReply(chatId, botId, this.now());
   }
 
-  private async onCommand(ctx: ReplyContext, text: string): Promise<void> {
+  private async onCommand(ctx: ReplyContext, text: string, speaker = "Foydalanuvchi"): Promise<void> {
     const [head = "", ...rest] = text.split(/\s+/);
     const command = (head.split("@")[0] ?? "").toLowerCase();
     const arg = rest.join(" ").trim();
     switch (command) {
+      case "/muhokama":
+        if (ctx.fromBotId !== undefined) return; // munozarani faqat odam boshlaydi
+        if (!ctx.isGroup || !this.deps.partnerBot) {
+          await this.send(ctx, "Munozara faqat guruhda, sherik bot bilan ishlaydi.");
+          return;
+        }
+        if (!arg) {
+          await this.send(ctx, "Mavzuni yozing, masalan: <code>/muhokama Ibn Sino tibbiyoti</code>");
+          return;
+        }
+        return this.startDiscussion(ctx, arg, speaker);
+      case "/toxtat":
+        if (ctx.fromBotId !== undefined) return;
+        return this.stopDiscussion(ctx);
       case "/tasodifiy":
         return this.sendCard(ctx, this.deps.service.random());
       case "/davrlar":
@@ -374,6 +419,141 @@ export class AllomaBot {
     );
   }
 
+  // ---------- 1 soatlik munozara ----------
+
+  private partnerName(): string {
+    return this.deps.partnerBot?.toLowerCase().startsWith("sardor") ? "Sardor AI" : `@${this.deps.partnerBot}`;
+  }
+
+  private discussionContext(chatId: number, now: number): DiscussionContext | undefined {
+    const s = this.discussions.peek(chatId);
+    if (!s) return undefined;
+    return {
+      topic: s.topic,
+      partnerName: this.partnerName(),
+      minutesLeft: Math.max(0, Math.round((s.endsAt - now) / 60_000)),
+    };
+  }
+
+  private async startDiscussion(ctx: ReplyContext, topic: string, speaker: string): Promise<void> {
+    const partner = this.deps.partnerBot;
+    if (!partner) return;
+    const now = this.now();
+    const active = this.discussions.get(ctx.chatId, now);
+    if (active) {
+      await this.send(
+        ctx,
+        `Hozir «${escapeHtml(active.topic)}» mavzusida munozara ketyapti. Avval /toxtat bilan to'xtating.`,
+      );
+      return;
+    }
+
+    const cleanTopic = truncate(topic.replace(/\s+/g, " ").trim(), 150);
+    const session = this.discussions.start(ctx.chatId, cleanTopic, speaker, now);
+    this.conversations.reset(ctx.chatId);
+    await this.send(
+      ctx,
+      `🗣 Munozara boshlandi: <b>«${escapeHtml(cleanTopic)}»</b>\n` +
+        `Sherik: @${escapeHtml(partner)} · ko'pi bilan ${Math.round(DISCUSSION_MAX_MS / 60_000)} daqiqa. To'xtatish: /toxtat`,
+    );
+
+    // Ochilish fikri — AI'dan (bo'lmasa, tayyor matn).
+    let opener = `Salom! Keling, «${cleanTopic}» mavzusini muhokama qilaylik. Sizningcha, bu mavzuning eng muhim jihati nimada?`;
+    if (this.deps.ai) {
+      try {
+        const prompt = `(Munozarani sen boshlaysan: ${this.partnerName()}ga salom ber, «${cleanTopic}» haqida o'z fikringni qisqa ayt va uning fikrini so'ra.)`;
+        const reply = stripMarkdown(
+          await this.deps.ai.complete(
+            buildAiMessages(
+              prompt,
+              this.deps.service.all(),
+              this.deps.service.findRelevant(cleanTopic, 5),
+              this.identity,
+              [],
+              this.discussionContext(ctx.chatId, now),
+            ),
+          ),
+        ).trim();
+        if (reply) opener = reply;
+      } catch (err) {
+        this.log(`[bot] munozara ochilishi AI xato: ${(err as Error).message}`);
+      }
+    }
+
+    const text = `@${partner} ${truncate(opener, 3500)}`;
+    const sent = await this.deliver({ chatId: ctx.chatId, isGroup: ctx.isGroup }, "sendMessage", {
+      text,
+      link_preview_options: { is_disabled: true },
+    });
+    if (sent) {
+      this.conversations.append(ctx.chatId, `${speaker}: (munozara mavzusi: ${cleanTopic})`, text, [], this.now());
+      this.discussions.recordReply(ctx.chatId, this.now());
+      this.log(`[bot] munozara boshlandi chat=${ctx.chatId} mavzu=«${session.topic}»`);
+    }
+  }
+
+  private async stopDiscussion(ctx: ReplyContext): Promise<void> {
+    const s = this.discussions.end(ctx.chatId);
+    if (!s) {
+      await this.send(ctx, "Hozir faol munozara yo'q.");
+      return;
+    }
+    const minutes = Math.max(1, Math.round((this.now() - s.startedAt) / 60_000));
+    await this.send(
+      ctx,
+      `⏹ Munozara to'xtatildi: «${escapeHtml(s.topic)}» — ${minutes} daqiqa, ${s.turns} ta javob.`,
+    );
+  }
+
+  /** Sherik botning munozaradagi navbatdagi xabari. */
+  private async onDiscussionTurn(msg: TgMessage, raw: string): Promise<void> {
+    const chatId = msg.chat.id;
+    const botId = msg.from?.id ?? 0;
+    const isGroup = msg.chat.type === "group" || msg.chat.type === "supergroup";
+    const ctx: ReplyContext = { chatId, isGroup, replyTo: msg.message_id, fromBotId: botId };
+
+    const turn = this.discussions.nextTurn(chatId, this.now());
+    if (!turn) return;
+    if (turn.status === "finished") {
+      // Vaqt yoki javoblar soni tugadi — bir marta xayrlashib, sessiyani yopamiz.
+      this.discussions.end(chatId);
+      await this.deliver(ctx, "sendMessage", {
+        text: `Vaqtimiz tugadi — «${turn.session.topic}» bo'yicha ajoyib suhbat bo'ldi, rahmat! 🙏`,
+      });
+      this.log(`[bot] munozara tugadi (${turn.reason}) chat=${chatId}, ${turn.session.turns} ta javob`);
+      return;
+    }
+
+    // Takroriy matnlar sessiyada ham bloklanadi (sikl belgisi).
+    const decision = this.guard.checkBotMessage(chatId, botId, raw, this.now(), { ignoreTurnLimit: true });
+    if (!decision.allow) {
+      this.log(`[bot] munozarada bot xabari o'tkazildi (${decision.reason}) chat=${chatId}`);
+      return;
+    }
+
+    const wait = Math.max(turn.waitMs, decision.waitMs);
+    const text = truncate(this.stripOwnMention(raw), MAX_BOT_INPUT_LENGTH);
+    const sent = await this.answerWithAi(ctx, text, this.speakerLabel(msg), {
+      discussion: this.discussionContext(chatId, this.now()),
+      minWaitMs: wait,
+    });
+    if (sent) {
+      this.discussions.recordReply(chatId, this.now());
+      this.guard.recordBotReply(chatId, botId, this.now());
+    }
+  }
+
+  /** Odamdek kutish: "yozmoqda…" holatini har 4.5 soniyada yangilab turadi. */
+  private async typeFor(chatId: number, ms: number): Promise<void> {
+    let left = ms;
+    while (left > 0) {
+      await this.deps.api.call("sendChatAction", { chat_id: chatId, action: "typing" }).catch(() => {});
+      const step = Math.min(4_500, left);
+      await this.sleep(step);
+      left -= step;
+    }
+  }
+
   /** Odam so'radi: "Sardor AI'dan X haqida so'ra" — sherik botga @mention bilan savol yuboramiz. */
   private async askPartner(ctx: ReplyContext, topic: string): Promise<void> {
     const partner = this.deps.partnerBot;
@@ -388,7 +568,13 @@ export class AllomaBot {
   }
 
   /** AI javobi. true — javob yuborildi. */
-  private async answerWithAi(ctx: ReplyContext, question: string, speaker: string): Promise<boolean> {
+  private async answerWithAi(
+    ctx: ReplyContext,
+    question: string,
+    speaker: string,
+    options: { discussion?: DiscussionContext | undefined; minWaitMs?: number } = {},
+  ): Promise<boolean> {
+    const startedAt = this.now();
     const { ai, service, api } = this.deps;
     const fromBot = ctx.fromBotId !== undefined;
     if (!ai) {
@@ -429,7 +615,9 @@ export class AllomaBot {
     let answer: string;
     try {
       answer = stripMarkdown(
-        await ai.complete(buildAiMessages(labeled, service.all(), relevant, this.identity, conversation.messages)),
+        await ai.complete(
+          buildAiMessages(labeled, service.all(), relevant, this.identity, conversation.messages, options.discussion),
+        ),
       );
       // Model ba'zan javobni o'z ismi bilan boshlaydi ("Alloma AI: ...") — olib tashlaymiz.
       answer = answer.replace(new RegExp(`^\\s*${this.identity.name}\\s*:\\s*`, "i"), "").trim();
@@ -458,6 +646,16 @@ export class AllomaBot {
       mentioned.map((a) => a.slug),
       now,
     );
+
+    // Munozarada odamdek sur'at: javob uzunligiga qarab "yozish" va kamida minWaitMs oraliq.
+    if (options.discussion) {
+      const elapsed = this.now() - startedAt;
+      const typing = this.deps.humanLikeDelay === false ? 0 : typingDelayMs(answer);
+      const delay = Math.max(typing, options.minWaitMs ?? 0) - elapsed;
+      if (delay > 0) await this.typeFor(ctx.chatId, delay);
+    } else if (options.minWaitMs && options.minWaitMs > 0) {
+      await this.sleep(options.minWaitMs);
+    }
 
     // AI matni HTML sifatida emas, oddiy matn sifatida yuboriladi (formatlash xatolari bo'lmasligi uchun).
     return this.deliver(ctx, "sendMessage", {
