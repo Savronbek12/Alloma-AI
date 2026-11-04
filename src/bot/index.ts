@@ -3,6 +3,7 @@ import type { RequestHandler } from "express";
 import { env } from "../config/env.js";
 import type { AllomaService } from "../services/alloma.service.js";
 import { AllomaBot, BOT_COMMANDS } from "./alloma-bot.js";
+import { botDescription, botShortDescription } from "./format.js";
 import { GroqClient } from "./groq.js";
 import { TelegramApi, type TgUpdate } from "./telegram-api.js";
 
@@ -147,6 +148,14 @@ export function createTelegramRuntime(service: AllomaService): TelegramRuntime |
       await api.call("setMyName", { name: env.BOT_NAME }).catch((err: Error) =>
         console.warn("[bot] setMyName:", err.message),
       );
+      // Profil tavsiflari ham kod bilan boshqariladi (har deploy'da to'g'ri holatda bo'ladi).
+      const identity = { name: env.BOT_NAME, creator: env.BOT_CREATOR };
+      await api
+        .call("setMyDescription", { description: botDescription(identity, env.publicUrl) })
+        .catch((err: Error) => console.warn("[bot] setMyDescription:", err.message));
+      await api
+        .call("setMyShortDescription", { short_description: botShortDescription(identity) })
+        .catch((err: Error) => console.warn("[bot] setMyShortDescription:", err.message));
 
       if (mode === "webhook") {
         const url = `${env.publicUrl}${TELEGRAM_WEBHOOK_PATH}`;

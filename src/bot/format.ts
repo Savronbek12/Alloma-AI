@@ -14,6 +14,33 @@ export function identityAnswer(identity: BotIdentity): string {
   return `Mening ismim ${identity.name}, meni ${identity.creator} yaratgan.`;
 }
 
+/** Telegram profilidagi qisqa tavsif (≤ 120 belgi). */
+export function botShortDescription(identity: BotIdentity): string {
+  return truncate(
+    `${identity.name} — barcha fanlar bo'yicha AI yordamchi va 100+ o'zbek allomasi haqida bilimdon. Muallif: ${identity.creator}.`,
+    120,
+  );
+}
+
+/** /start bosishdan oldin bo'sh chatda ko'rinadigan tavsif (≤ 512 belgi). */
+export function botDescription(identity: BotIdentity, siteUrl?: string): string {
+  return truncate(
+    [
+      `Salom! Men — ${identity.name}, barcha fanlar bo'yicha AI yordamchiman.`,
+      "",
+      "📚 Matematika, fizika, kimyo, biologiya, tarix, adabiyot, dasturlash, tillar — istalgan savolingizga tushuntirib javob beraman, masalalarni bosqichma-bosqich yechaman.",
+      "🏛 Al-Xorazmiydan Abdulla Qodiriygacha — 100 dan ortiq o'zbek allomasi haqida ma'lumot va rasmlar.",
+      "💬 Oddiy suhbatdek yozing — gaplarimizni eslab qolaman.",
+      "",
+      siteUrl ? `🌐 ${siteUrl}` : "",
+      `Muallif: ${identity.creator}`,
+    ]
+      .filter((line, i, all) => line !== "" || all[i - 1] !== "")
+      .join("\n"),
+    512,
+  );
+}
+
 /**
  * "Isming nima?", "Seni kim yaratgan?" va shu kabi savollar (o'zbek/rus/ingliz).
  * Bunday savollarga AI'siz, har doim bir xil javob beriladi.

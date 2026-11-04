@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { AI_COOLDOWN_MS, AllomaBot } from "../src/bot/alloma-bot.js";
 import { ConversationStore } from "../src/bot/conversation.js";
-import { buildAiMessages, codeAnswerToHtml, detectEra, stripMarkdown } from "../src/bot/format.js";
+import {
+  botDescription,
+  botShortDescription,
+  buildAiMessages,
+  codeAnswerToHtml,
+  detectEra,
+  stripMarkdown,
+} from "../src/bot/format.js";
 import { GroqClient, type AiClient, type ChatMessage } from "../src/bot/groq.js";
 import type { BotApi, TgUpdate } from "../src/bot/telegram-api.js";
 import { createContainer } from "../src/container.js";
@@ -135,6 +142,18 @@ describe("AI so'rovi hajmi (bepul tarif limiti)", () => {
     const { api, bot } = setup(["Mana:\n```python\nprint(1 < 2)\n```"]);
     await bot.handleUpdate(msg("Pythonda solishtirish"));
     expect(api.texts.at(-1)).toBe("Mana:\n<pre><code class=\"language-python\">print(1 &lt; 2)</code></pre>");
+  });
+
+  it("bot tavsiflari Telegram limitlariga sig'adi", () => {
+    const id = { name: "Alloma AI", creator: "Savronbek" };
+    const long = botDescription(id, "https://alloma-ai.onrender.com");
+    expect(long.length).toBeLessThanOrEqual(512);
+    expect(long).toContain("barcha fanlar");
+    expect(long).toContain("https://alloma-ai.onrender.com");
+    expect(long).toContain("Savronbek");
+    expect(long.endsWith("…")).toBe(false);
+    expect(botShortDescription(id).length).toBeLessThanOrEqual(120);
+    expect(botShortDescription(id).endsWith("…")).toBe(false);
   });
 
   it("detectEra turli yozuvlarni taniydi", () => {
