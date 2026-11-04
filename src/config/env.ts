@@ -33,7 +33,8 @@ const envSchema = z.object({
   PUBLIC_URL: z.string().url().optional(),
 
   /** Google Search Console tasdiqlash kodi (meta teg content'i yoki google….html fayl nomi). */
-  GOOGLE_SITE_VERIFICATION: secret,
+  // Bu kod maxfiy emas (sahifa HTML'ida ochiq turadi) — shuning uchun standart qiymat sifatida kodda.
+  GOOGLE_SITE_VERIFICATION: secret.transform((v) => v ?? "c583oGeyr9iOwCEGWpfd56kMLCaXiLA5pe229igVBK4"),
 
   // --- Telegram bot ---
   TELEGRAM_BOT_TOKEN: secret,
