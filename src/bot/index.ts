@@ -4,6 +4,7 @@ import { env } from "../config/env.js";
 import type { AllomaService } from "../services/alloma.service.js";
 import { AllomaBot, BOT_COMMANDS } from "./alloma-bot.js";
 import { botDescription, botShortDescription } from "./format.js";
+import { StickerLibrary } from "./stickers.js";
 import { GroqClient } from "./groq.js";
 import { TelegramApi, type TgUpdate } from "./telegram-api.js";
 
@@ -112,6 +113,9 @@ export function createTelegramRuntime(service: AllomaService): TelegramRuntime |
     : undefined;
   if (!aiClient) console.warn("[bot] GROQ_API_KEY yo'q — AI javoblari o'chiq, buyruqlar ishlaydi");
 
+  const stickerSets = env.STICKER_SETS.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const bot = new AllomaBot({
     api,
     service,
@@ -119,6 +123,7 @@ export function createTelegramRuntime(service: AllomaService): TelegramRuntime |
     siteUrl: env.publicUrl,
     identity: { name: env.BOT_NAME, creator: env.BOT_CREATOR },
     partnerBot: env.PARTNER_BOT_USERNAME,
+    stickers: stickerSets.length ? new StickerLibrary(api, stickerSets) : undefined,
   });
   const secret =
     env.TELEGRAM_WEBHOOK_SECRET ?? createHash("sha256").update(`alloma-ai:${token}`).digest("hex").slice(0, 48);

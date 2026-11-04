@@ -48,6 +48,8 @@ const envSchema = z.object({
   /** Bot o'zini qanday tanishtiradi ("Mening ismim …, meni … yaratgan"). */
   BOT_NAME: z.string().min(1).max(64).default("Alloma AI"),
   BOT_CREATOR: z.string().min(1).default("Savronbek"),
+  /** Hissiyot stikerlari olinadigan to'plamlar (vergul bilan; bo'sh — stikerlar o'chiq). */
+  STICKER_SETS: z.string().default("UtyaDuck,HotCherry"),
   /** Guruhda suhbatlashiladigan sherik bot (bo'sh qoldirilsa — o'chiq). @ belgisisiz. */
   PARTNER_BOT_USERNAME: z
     .string()
