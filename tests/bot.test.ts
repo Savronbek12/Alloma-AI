@@ -164,18 +164,29 @@ describe("AllomaBot AI javoblari", () => {
     expect(buttons.flat()[0]?.callback_data).toBe("a:muhammad-ibn-muso-al-xorazmiy");
   });
 
-  it("bir chatdan juda tez savollarni cheklaydi", async () => {
+  it("tez yozilgan javob yo'qolmaydi: oz kutib javob beradi", async () => {
     const ai = new FakeAi();
     let t = 1_000_000;
-    const { api, bot } = setup({ ai, now: () => t });
+    const sleeps: number[] = [];
+    const api = new FakeApi();
+    const bot = new AllomaBot({ api, service, ai, log: () => {}, now: () => t, sleep: async (ms) => void sleeps.push(ms) });
     await bot.handleUpdate(text("Algebrani kim asoslagan?"));
     t += 1000;
     await bot.handleUpdate(text("Tib qonunlari muallifi kim?"));
-    expect(ai.messages).toHaveLength(1);
-    expect(api.lastText()).toContain("Biroz kuting");
-    t += AI_COOLDOWN_MS;
-    await bot.handleUpdate(text("Tib qonunlari muallifi kim?"));
     expect(ai.messages).toHaveLength(2);
+    expect(sleeps).toEqual([AI_COOLDOWN_MS - 1000]);
+  });
+
+  it("ketma-ket juda ko'p xabar bo'lsa — cheklaydi", async () => {
+    const ai = new FakeAi();
+    const t = 1_000_000;
+    const api = new FakeApi();
+    const bot = new AllomaBot({ api, service, ai, log: () => {}, now: () => t, sleep: async () => {} });
+    await bot.handleUpdate(text("Algebrani kim asoslagan?"));
+    await bot.handleUpdate(text("Tib qonunlari muallifi kim?"));
+    await bot.handleUpdate(text("Xamsa muallifi kim?"));
+    expect(ai.messages).toHaveLength(2);
+    expect(api.lastText()).toContain("Biroz kuting");
   });
 
   it("AI xato bersa — foydalanuvchiga tushunarli xabar", async () => {

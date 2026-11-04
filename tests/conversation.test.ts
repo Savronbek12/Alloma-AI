@@ -86,6 +86,50 @@ describe("Suhbat xotirasi", () => {
     expect(ai.calls[1]?.map((m) => m.role)).toEqual(["system", "user"]);
   });
 
+  it("bot savol bergan bo'lsa, ism bilan javob — kartochka emas, kontekstli AI javobi", async () => {
+    const { api, ai, bot, tick } = setup(["Qaysi allomani eng yaxshi ko'rasiz?", "Beruniy — ajoyib tanlov!"]);
+    await bot.handleUpdate(msg("Menga allomalar haqida gapir"));
+    tick();
+    await bot.handleUpdate(msg("Beruniy"));
+    expect(ai.calls).toHaveLength(2);
+    expect(ai.calls[1]?.map((m) => m.content)).toContain("Qaysi allomani eng yaxshi ko'rasiz?");
+    expect(api.texts.at(-1)).toBe("Beruniy — ajoyib tanlov!");
+  });
+
+  it("reply qilingan xabar (tarixda bo'lmasa) AI'ga ko'rsatiladi", async () => {
+    const { ai, bot } = setup(["Ha, to'g'ri."]);
+    await bot.handleUpdate({
+      update_id: 2,
+      message: {
+        message_id: 5,
+        chat: { id: 7, type: "private" },
+        text: "ha",
+        reply_to_message: {
+          message_id: 4,
+          chat: { id: 7, type: "private" },
+          text: "Sizga kvadrat tenglamalarni tushuntirib beraymi?",
+        },
+      },
+    });
+    expect(ai.calls[0]?.at(-1)?.content).toBe(
+      "(Bu xabar quyidagi xabarga javob: «Sizga kvadrat tenglamalarni tushuntirib beraymi?»)\nha",
+    );
+  });
+
+  it("kartochkadan keyin «uning asarlari?» — o'sha alloma kontekstda", async () => {
+    const { ai, bot, tick } = setup(["Xamsa va boshqalar."]);
+    await bot.handleUpdate(msg("Alisher Navoiy"));
+    tick();
+    await bot.handleUpdate(msg("Uning asarlari-chi?"));
+    expect(ai.calls[0]?.[0]?.content).toContain("### Alisher Navoiy");
+    expect(ai.calls[0]?.some((m) => m.role === "assistant" && m.content.includes("Alisher Navoiy"))).toBe(true);
+  });
+
+  it("tizim ko'rsatmasi har javobdan oldin tarixni qayta o'qishni talab qiladi", () => {
+    const [system] = buildAiMessages("ha", service.all(), []);
+    expect(system?.content).toContain("yuqoridagi suhbat tarixini");
+  });
+
   it("/yangi suhbatni tozalaydi", async () => {
     const { api, ai, bot, tick } = setup(["Birinchi", "Ikkinchi"]);
     await bot.handleUpdate(msg("Navoiy qayerda tug'ilgan?"));
@@ -191,11 +235,11 @@ describe("ConversationStore", () => {
     expect(store.get(1, 2000).recentSlugs).toHaveLength(0);
   });
 
-  it("standart holatda oxirgi 10 ta xabar va 1 soatdan ortiq saqlanadi", () => {
+  it("standart holatda oxirgi 16 ta xabar va 1 soatdan ortiq saqlanadi", () => {
     const store = new ConversationStore();
-    for (let i = 1; i <= 7; i++) store.append(1, `s${i}`, `j${i}`, [], i);
-    expect(store.get(1, 8).messages).toHaveLength(10);
-    expect(store.get(1, 65 * 60_000).messages).toHaveLength(10);
+    for (let i = 1; i <= 10; i++) store.append(1, `s${i}`, `j${i}`, [], i);
+    expect(store.get(1, 11).messages).toHaveLength(16);
+    expect(store.get(1, 65 * 60_000).messages).toHaveLength(16);
   });
 
   it("faqat oxirgi N ta xabarni saqlaydi", () => {

@@ -19,6 +19,8 @@ export interface TgMessage {
   chat: TgChat;
   from?: TgUser;
   text?: string;
+  /** Rasm/kartochka xabarining matni. */
+  caption?: string;
   /** Bu xabar qaysi xabarga reply qilingan (bot-bot suhbati shu orqali davom etadi). */
   reply_to_message?: TgMessage;
 }

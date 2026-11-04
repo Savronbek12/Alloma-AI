@@ -1,4 +1,5 @@
 import { ERA_IDS, ERA_LABELS, ERA_PERIODS, type EraId } from "../../shared/constants.js";
+import { formatYears } from "../../shared/format.js";
 import type { Alloma } from "../../shared/types.js";
 import type { AllomaService } from "../services/alloma.service.js";
 import { normalizeForSearch } from "../utils/text.js";
@@ -227,13 +228,27 @@ export class AllomaBot {
     if (partnerTopic) return this.askPartner(ctx, partnerTopic);
 
     if (isIdentityQuestion(text)) {
-      await this.send(ctx, escapeHtml(identityAnswer(this.identity)));
+      const answer = identityAnswer(this.identity);
+      await this.send(ctx, escapeHtml(answer));
+      this.conversations.append(chatId, text, answer, [], this.now());
       return;
     }
 
+    // Reply qilingan xabar matni (bizniki yoki boshqaniki) — savol nima haqidaligini tushunish uchun.
+    const replied = msg.reply_to_message;
+    const quoted = replied ? (replied.text ?? replied.caption) : undefined;
+
+    // Faqat ism yozilsa — kartochka. Lekin bot oldin savol bergan bo'lsa yoki foydalanuvchi
+    // xabarga reply qilgan bo'lsa, bu — suhbatdagi javob: AI kontekst bilan davom ettiradi.
     const exact = this.deps.service.findByName(text);
-    if (exact) return this.sendCard(ctx, exact);
-    await this.answerWithAi(ctx, text, this.speakerLabel(msg));
+    if (exact && !quoted && !this.awaitingAnswer(chatId)) return this.sendCard(ctx, exact);
+    await this.answerWithAi(ctx, text, this.speakerLabel(msg), { quoted });
+  }
+
+  /** Botning oxirgi javobi savol bilan tugaganmi (foydalanuvchi endi unga javob beryapti). */
+  private awaitingAnswer(chatId: number): boolean {
+    const last = this.conversations.get(chatId, this.now()).messages.at(-1);
+    return last?.role === "assistant" && /\?\s*\S{0,3}\s*$/.test(last.content);
   }
 
   /** Boshqa botdan kelgan, bizga atalgan xabar — sikldan himoya bilan. */
@@ -370,6 +385,14 @@ export class AllomaBot {
     if (siteUrl) buttons.push([{ text: "🌐 Saytda ochish", url: `${siteUrl}/#/alloma/${a.slug}` }]);
     buttons.push([{ text: "🎲 Yana tasodifiy", callback_data: "rnd" }]);
     const caption = allomaCaption(a);
+    // Kartochka ham suhbat tarixiga yoziladi: keyin "uning asarlari?" deb so'rash mumkin.
+    this.conversations.append(
+      ctx.chatId,
+      `(${a.name} kartochkasi so'raldi)`,
+      `${a.name} (${formatYears(a)}) haqida kartochka ko'rsatdim: ${truncate(a.bio, 300)}`,
+      [a.slug],
+      this.now(),
+    );
 
     if (a.image && siteUrl) {
       try {
@@ -581,7 +604,7 @@ export class AllomaBot {
     ctx: ReplyContext,
     question: string,
     speaker: string,
-    options: { discussion?: DiscussionContext | undefined; minWaitMs?: number } = {},
+    options: { discussion?: DiscussionContext | undefined; minWaitMs?: number; quoted?: string | undefined } = {},
   ): Promise<boolean> {
     const startedAt = this.now();
     const { ai, service, api } = this.deps;
@@ -596,11 +619,15 @@ export class AllomaBot {
     const now = this.now();
     if (!fromBot) {
       // Odamlar uchun AI kvotasi cheklovi (botlar uchun — BotGuard'dagi 3 soniyalik qoida).
+      // Tez yozilgan javob yo'qolmasin: navbatga qo'yib, oz kutib javob beramiz.
+      // Faqat ketma-ket juda ko'p xabar (3+ navbatda) bo'lsa — rad etamiz.
       const last = this.lastAiRequest.get(ctx.chatId);
-      if (last !== undefined && now - last < AI_COOLDOWN_MS) {
-        return this.sendNotice(ctx, "⏳ Biroz kuting — keyingi savolni bir necha soniyadan so'ng yuboring.");
+      const slot = last === undefined ? now : Math.max(now, last + AI_COOLDOWN_MS);
+      if (slot - now > AI_COOLDOWN_MS) {
+        return this.sendNotice(ctx, "⏳ Biroz kuting — oldingi savollaringizga javob tayyorlanmoqda.");
       }
-      this.lastAiRequest.set(ctx.chatId, now);
+      this.lastAiRequest.set(ctx.chatId, slot);
+      if (slot > now) await this.sleep(slot - now);
     }
 
     await api.call("sendChatAction", { chat_id: ctx.chatId, action: "typing" }).catch(() => {});
@@ -620,13 +647,23 @@ export class AllomaBot {
 
     // Guruhda kim yozganini bildiramiz: "Ism: matn", botlar — "Ism (bot): matn".
     const labeled = ctx.isGroup ? `${speaker}: ${question}` : question;
+    // Foydalanuvchi aniq bir xabarga reply qilgan bo'lsa (va u tarixda bo'lmasa — masalan, server
+    // qayta ishga tushgandan keyin), o'sha xabarni ham AI'ga ko'rsatamiz.
+    const quoted = options.quoted?.trim();
+    const quotedInHistory =
+      quoted !== undefined &&
+      conversation.messages.some((m) => m.content.includes(quoted.slice(0, 120)));
+    const aiQuestion =
+      quoted && !quotedInHistory
+        ? `(Bu xabar quyidagi xabarga javob: «${truncate(quoted, 1200)}»)\n${labeled}`
+        : labeled;
 
     let answer: string;
     let mood: StickerMood | undefined;
     try {
       answer = stripMarkdown(
         await ai.complete(
-          buildAiMessages(labeled, service.all(), relevant, this.identity, conversation.messages, options.discussion),
+          buildAiMessages(aiQuestion, service.all(), relevant, this.identity, conversation.messages, options.discussion),
         ),
       );
       const tagged = extractStickerTag(answer);
@@ -654,7 +691,7 @@ export class AllomaBot {
 
     this.conversations.append(
       ctx.chatId,
-      labeled,
+      aiQuestion,
       answer,
       mentioned.map((a) => a.slug),
       now,

@@ -20,6 +20,13 @@ interface Conversation {
   updatedAt: number;
 }
 
+/** Tarixda saqlanadigan bitta xabarning maksimal uzunligi (boshi va oxiri saqlanadi). */
+export const MAX_STORED_CHARS = 1200;
+const clip = (text: string) =>
+  text.length <= MAX_STORED_CHARS
+    ? text
+    : `${text.slice(0, MAX_STORED_CHARS - 300).trimEnd()} … ${text.slice(-280).trimStart()}`;
+
 export class ConversationStore {
   private readonly chats = new Map<number, Conversation>();
   private readonly maxMessages: number;
@@ -27,8 +34,9 @@ export class ConversationStore {
   private readonly maxChats: number;
 
   constructor(options: ConversationOptions = {}) {
-    // 10 ta xabar (5 savol-javob) — bepul tarifning daqiqalik token limitini tejash uchun.
-    this.maxMessages = options.maxMessages ?? 10;
+    // 16 ta xabar (8 savol-javob): bot yuqoridagi gaplarni yaxshi eslab qolishi uchun.
+    // Token limitini tejash uchun uzun xabarlar MAX_STORED_CHARS gacha qisqartiriladi.
+    this.maxMessages = options.maxMessages ?? 16;
     // 70 daqiqa — 1 soatlik munozara davomida xotira saqlanib qolishi uchun.
     this.ttlMs = options.ttlMs ?? 70 * 60_000;
     this.maxChats = options.maxChats ?? 1000;
@@ -47,8 +55,8 @@ export class ConversationStore {
   append(chatId: number, question: string, answer: string, slugs: readonly string[], now: number): void {
     const current = this.get(chatId, now);
     const turn: ChatMessage[] = [
-      { role: "user", content: question },
-      { role: "assistant", content: answer },
+      { role: "user", content: clip(question) },
+      { role: "assistant", content: clip(answer) },
     ];
     const messages = [...current.messages, ...turn].slice(-this.maxMessages);
     const recentSlugs = [...new Set([...slugs, ...current.recentSlugs])].slice(0, 5);
