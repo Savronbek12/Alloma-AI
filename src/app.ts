@@ -28,7 +28,20 @@ export function createApp(container: Container): Express {
   app.use("/api", createApiRouter(container.allomaService));
   app.use("/api", notFoundHandler);
 
-  app.use(express.static(env.publicDir, { maxAge: env.isProduction ? "1h" : 0 }));
+  app.use(
+    express.static(env.publicDir, {
+      setHeaders(res, filePath) {
+        // HTML/CSS/JS har deploy'da o'zgaradi: brauzer har safar ETag bilan tekshirsin
+        // (o'zgarmagan bo'lsa 304), aks holda eski CSS yangi HTML bilan aralashib qoladi.
+        if (/\.(html|css|js)$/.test(filePath)) {
+          res.setHeader("Cache-Control", "no-cache");
+        } else if (env.isProduction) {
+          // Rasmlar va boshqa statik fayllar kam o'zgaradi.
+          res.setHeader("Cache-Control", "public, max-age=604800");
+        }
+      },
+    }),
+  );
 
   app.use(notFoundHandler);
   app.use(errorHandler);

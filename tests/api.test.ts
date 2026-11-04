@@ -60,4 +60,11 @@ describe("REST API", () => {
     const res = await request(app).get("/").expect(200);
     expect(res.text).toContain("O'zbek allomalari");
   });
+
+  it("HTML va CSS keshlanmaydi (deploy'dan keyin eski uslub qolmasligi uchun)", async () => {
+    const html = await request(app).get("/").expect(200);
+    expect(html.headers["cache-control"]).toBe("no-cache");
+    const css = await request(app).get("/css/styles.css").expect(200);
+    expect(css.headers["cache-control"]).toBe("no-cache");
+  });
 });
