@@ -1,4 +1,4 @@
-import { ERA_LABELS, ERA_PERIODS } from "../../shared/constants.js";
+import { ERA_IDS, ERA_LABELS, ERA_PERIODS, type EraId } from "../../shared/constants.js";
 import { formatYears } from "../../shared/format.js";
 import type { Alloma } from "../../shared/types.js";
 import type { ChatMessage } from "./groq.js";
@@ -53,6 +53,7 @@ export function stripMarkdown(text: string): string {
     .replace(/\*\*(.+?)\*\*/gs, "$1")
     .replace(/__(.+?)__/gs, "$1")
     .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[*-]\s+/gm, "• ")
     .replace(/`([^`]+)`/g, "$1");
 }
 
@@ -84,8 +85,23 @@ export function allomaButtonLabel(a: Alloma): string {
   return truncate(`${a.name} · ${formatYears(a)}`, 60);
 }
 
+/** Savolda tilga olingan davr ("Temuriylar davri olimlari", "jadidlar kimlar?"). */
+const ERA_KEYWORDS: Record<EraId, RegExp> = {
+  "ilk-orta-asr": /ilk orta asr|orta asr|somoniy|qoraxoniy|xorazmshoh|birinchi uygonish/,
+  temuriylar: /temuriy|temur davri|ikkinchi uygonish/,
+  xonliklar: /xonlik|xonligi|mangit|shayboniy|ashtarxoniy/,
+  jadidlar: /jadid/,
+  zamonaviy: /zamonaviy|sovet|xx asr|xxi asr|hozirgi/,
+};
+
+export function detectEra(text: string): EraId | undefined {
+  const t = text.toLowerCase().replace(/[ʻʼ‘’`']/g, "");
+  return ERA_IDS.find((id) => ERA_KEYWORDS[id].test(t));
+}
+
 /**
- * AI uchun so'rov: qisqa ro'yxat (barcha allomalar) + savolga mos allomalarning to'liq ma'lumoti.
+ * AI uchun so'rov: savolga mos allomalarning to'liq ma'lumoti (+ savolda davr bo'lsa — o'sha davr ro'yxati).
+ * Bepul tarifning daqiqalik token limitiga sig'ishi uchun barcha 103 alloma ro'yxati yuborilmaydi.
  * Model faqat shu ma'lumotlarga tayanishi kerak — o'ylab topmasligi uchun.
  */
 export function buildAiMessages(
@@ -93,8 +109,15 @@ export function buildAiMessages(
   all: readonly Alloma[],
   relevant: readonly Alloma[],
   identity: BotIdentity = DEFAULT_IDENTITY,
+  history: readonly ChatMessage[] = [],
 ): ChatMessage[] {
-  const index = all.map((a) => `- ${a.name} (${formatYears(a)})`).join("\n");
+  const era = detectEra(question);
+  const eraList = era
+    ? [
+        `${ERA_LABELS[era]} (${ERA_PERIODS[era]}) allomalari:`,
+        ...all.filter((a) => a.era === era).map((a) => `- ${a.name} (${formatYears(a)})`),
+      ].join("\n")
+    : "";
   const details = relevant
     .map((a) =>
       [
@@ -108,25 +131,27 @@ export function buildAiMessages(
     .join("\n\n");
 
   const system = [
-    `Sening isming — ${identity.name}. Seni ${identity.creator} yaratgan. Sen «Alloma-AI» loyihasining Telegram botisan va o'zbek allomalari haqidagi savollarga o'zbek tilida (lotin yozuvida) javob berasan.`,
+    `Sening isming — ${identity.name}. Seni ${identity.creator} yaratgan. Sen «Alloma-AI» loyihasining Telegram botisan: samimiy, bilimdon suhbatdosh, ayniqsa o'zbek allomalari bo'yicha mutaxassis.`,
     `Isming yoki seni kim yaratgani so'ralsa, aynan shunday javob ber: "${identityAnswer(identity)}" O'zingni boshqa model, kompaniya yoki dastur nomi bilan atama.`,
-    "Qoidalar:",
-    "1. Faqat pastdagi MA'LUMOTLARga tayan. Ma'lumotlarda bo'lmagan fakt, sana yoki asarni o'ylab topma.",
-    "2. Javob ma'lumotlarda bo'lmasa, buni ochiq ayt va /qidir yoki /davrlar buyruqlarini tavsiya qil.",
-    "3. Allomalar nomini aynan ro'yxatdagidek yoz.",
-    "4. Javob qisqa bo'lsin: 1–3 ta qisqa paragraf. Markdown belgilari (*, #, _) ishlatma.",
-    "5. Allomalar mavzusidan tashqari savollarga muloyimlik bilan bot faqat allomalar haqida gaplashishini ayt.",
     "",
-    "MA'LUMOTLAR",
-    "Barcha allomalar ro'yxati:",
-    index,
+    "Suhbat qoidalari:",
+    "1. Foydalanuvchi bilan tabiiy suhbatlash: salomlashish, hol-ahvol, minnatdorchilik, hazilga iliq va qisqa javob ber.",
+    "2. Oldingi xabarlarni hisobga ol: «u», «uning», «o'sha» kabi so'zlar suhbatda oldin tilga olingan allomaga ishora qilishi mumkin.",
+    "3. Foydalanuvchi qaysi tilda yozsa, o'sha tilda javob ber (standart — o'zbek tili, lotin yozuvi).",
+    "4. Allomalar haqidagi fakt, sana va asarlarni FAQAT pastdagi MA'LUMOTLARdan ol. Ma'lumotlarda yo'q tafsilot qo'shma: asar qachon, necha qismda, qaysi asrda yozilgani kabi narsalarni o'zingdan to'qima. Agar so'ralgan tafsilot ma'lumotlarda bo'lmasa, «bu haqda ma'lumotim yo'q» deb ayt.",
+    "5. Boshqa mavzularda umumiy bilimingdan qisqa javob berishing mumkin; ishonching komil bo'lmasa, shuni ayt. Mos kelsa, suhbatni allomalarga bog'la, lekin majburlama.",
+    "6. Zararli, xavfli yoki haqoratli so'rovlarni muloyimlik bilan rad et.",
+    "7. Javob qisqa bo'lsin (odatda 1–3 qisqa paragraf). Markdown belgilari (*, #, _) ishlatma.",
+    "8. Allomalar nomini aynan ro'yxatdagidek yoz.",
     "",
-    relevant.length ? "Savolga eng mos allomalar haqida batafsil:" : "Savolga mos alloma topilmadi.",
+    `MA'LUMOTLAR (bazada jami ${all.length} ta alloma; quyida faqat shu suhbatga mos qismi berilgan. To'liq ro'yxat uchun /davrlar buyrug'ini tavsiya qil.)`,
+    eraList,
+    "",
+    relevant.length
+      ? "Suhbatga eng mos allomalar haqida batafsil:"
+      : "Bu xabarga mos alloma topilmadi (oddiy suhbat bo'lishi mumkin).",
     details,
   ].join("\n");
 
-  return [
-    { role: "system", content: system },
-    { role: "user", content: question },
-  ];
+  return [{ role: "system", content: system }, ...history, { role: "user", content: question }];
 }

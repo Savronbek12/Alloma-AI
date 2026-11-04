@@ -14,6 +14,7 @@ import {
   truncate,
   type BotIdentity,
 } from "./format.js";
+import { ConversationStore } from "./conversation.js";
 import type { AiClient } from "./groq.js";
 import type { BotApi, InlineButton, TgCallbackQuery, TgMessage, TgUpdate } from "./telegram-api.js";
 
@@ -29,6 +30,8 @@ export interface AllomaBotDeps {
   siteUrl?: string | undefined;
   /** Bot o'zini qanday tanishtiradi (standart: Alloma AI / Savronbek). */
   identity?: BotIdentity;
+  /** Suhbat xotirasi (berilmasa — standart sozlamalar bilan yaratiladi). */
+  conversations?: ConversationStore;
   log?: (message: string) => void;
   now?: () => number;
 }
@@ -37,32 +40,40 @@ export const BOT_COMMANDS = [
   { command: "tasodifiy", description: "Tasodifiy alloma" },
   { command: "qidir", description: "Ism, shahar yoki asar bo'yicha qidirish" },
   { command: "davrlar", description: "Davrlar bo'yicha ko'rish" },
+  { command: "yangi", description: "Suhbatni yangidan boshlash" },
   { command: "yordam", description: "Bot imkoniyatlari" },
 ];
 
 const helpText = (identity: BotIdentity) => [
   `Salom! Men — <b>${escapeHtml(identity.name)}</b>, o'zbek allomalari haqida bot.`,
   "",
-  "Savolingizni oddiy yozing, masalan:",
+  "Men bilan bemalol suhbatlashing — oldingi gaplarimizni eslab qolaman. Masalan:",
   "• <i>Algebrani kim asoslagan?</i>",
-  "• <i>Navoiyning asarlari qaysilar?</i>",
-  "• <i>Temuriylar davri olimlari</i>",
+  "• <i>Navoiy qayerda tug'ilgan?</i> → <i>Uning asarlari-chi?</i>",
+  "• <i>Temuriylar davri olimlari kimlar?</i>",
   "",
   "Yoki allomaning ismini yozing — <i>Beruniy</i>.",
   "",
   "/tasodifiy — tasodifiy alloma",
   "/qidir <i>so'z</i> — qidirish",
   "/davrlar — davrlar bo'yicha ko'rish",
+  "/yangi — suhbatni yangidan boshlash",
 ].join("\n");
 
 export class AllomaBot {
   private readonly lastAiRequest = new Map<number, number>();
   private readonly log: (message: string) => void;
   private readonly identity: BotIdentity;
+  private readonly conversations: ConversationStore;
 
   constructor(private readonly deps: AllomaBotDeps) {
     this.log = deps.log ?? ((m) => console.log(m));
     this.identity = deps.identity ?? DEFAULT_IDENTITY;
+    this.conversations = deps.conversations ?? new ConversationStore();
+  }
+
+  private now(): number {
+    return this.deps.now?.() ?? Date.now();
   }
 
   async handleUpdate(update: TgUpdate): Promise<void> {
@@ -85,6 +96,9 @@ export class AllomaBot {
           return this.sendCard(chatId, this.deps.service.random());
         case "/davrlar":
           return this.sendEras(chatId);
+        case "/yangi":
+          this.conversations.reset(chatId);
+          return this.send(chatId, "🧹 Suhbat yangidan boshlandi. Nima haqida gaplashamiz?");
         case "/qidir":
           return arg
             ? this.sendSearch(chatId, arg)
@@ -206,7 +220,7 @@ export class AllomaBot {
       return;
     }
 
-    const now = this.deps.now?.() ?? Date.now();
+    const now = this.now();
     const last = this.lastAiRequest.get(chatId);
     if (last !== undefined && now - last < AI_COOLDOWN_MS) {
       await this.send(chatId, "⏳ Biroz kuting — keyingi savolni bir necha soniyadan so'ng yuboring.");
@@ -215,12 +229,26 @@ export class AllomaBot {
     this.lastAiRequest.set(chatId, now);
 
     await api.call("sendChatAction", { chat_id: chatId, action: "typing" }).catch(() => {});
-    const relevant = service.findRelevant(question, 5);
+
+    // Joriy savolga mos allomalar + suhbatda oldin muhokama qilinganlar ("uning asarlari?" uchun).
+    const conversation = this.conversations.get(chatId, now);
+    const relevant = [...service.findRelevant(question, 5)];
+    for (const slug of conversation.recentSlugs) {
+      if (relevant.length >= 7) break;
+      if (relevant.some((a) => a.slug === slug)) continue;
+      try {
+        relevant.push(service.getBySlug(slug));
+      } catch {
+        /* alloma o'chirilgan bo'lsa — o'tkazib yuboramiz */
+      }
+    }
 
     let answer: string;
     try {
       answer = stripMarkdown(
-        await ai.complete(buildAiMessages(question, service.all(), relevant, this.identity)),
+        await ai.complete(
+          buildAiMessages(question, service.all(), relevant, this.identity, conversation.messages),
+        ),
       );
     } catch (err) {
       this.log(`[bot] AI xato: ${(err as Error).message}`);
@@ -239,6 +267,14 @@ export class AllomaBot {
         return lastWord.length >= 4 && normalizedAnswer.includes(lastWord);
       })
       .slice(0, 3);
+
+    this.conversations.append(
+      chatId,
+      question,
+      answer,
+      mentioned.map((a) => a.slug),
+      now,
+    );
 
     // AI matni HTML sifatida emas, oddiy matn sifatida yuboriladi (formatlash xatolari bo'lmasligi uchun).
     await api.call("sendMessage", {

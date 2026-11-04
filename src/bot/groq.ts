@@ -17,10 +17,27 @@ export class AiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    /** 429 bo'lsa: necha millisekunddan keyin qayta urinish mumkin. */
+    public readonly retryAfterMs?: number,
   ) {
     super(message);
     this.name = "AiError";
   }
+}
+
+/** Limitga yetganda shu vaqtgacha kutib, qayta urinib ko'ramiz (foydalanuvchi "yozmoqda…" ni ko'radi). */
+const MAX_RETRY_WAIT_MS = 10_000;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** "Please try again in 6.8775s" / "in 832.5ms" yoki Retry-After sarlavhasidan kutish vaqti. */
+function parseRetryAfter(res: Response, message: string): number | undefined {
+  const header = Number(res.headers.get("retry-after"));
+  if (Number.isFinite(header) && header > 0) return header * 1000;
+  const m = message.match(/try again in ([\d.]+)\s*(ms|s)\b/i);
+  if (!m?.[1]) return undefined;
+  const value = Number(m[1]);
+  return m[2]?.toLowerCase() === "ms" ? value : value * 1000;
 }
 
 export interface GroqOptions {
@@ -60,7 +77,7 @@ export class GroqClient implements AiClient {
     );
     for (const model of candidates) {
       try {
-        return await this.request(model, messages);
+        return await this.requestWithShortWait(model, messages);
       } catch (err) {
         lastError = err;
         const retryable =
@@ -78,6 +95,24 @@ export class GroqClient implements AiClient {
       }
     }
     throw lastError;
+  }
+
+  /** 429 bo'lsa va kutish qisqa bo'lsa — kutib, o'sha modelga bir marta qayta urinadi. */
+  private async requestWithShortWait(model: string, messages: ChatMessage[]): Promise<string> {
+    try {
+      return await this.request(model, messages);
+    } catch (err) {
+      if (
+        err instanceof AiError &&
+        err.status === 429 &&
+        err.retryAfterMs !== undefined &&
+        err.retryAfterMs <= MAX_RETRY_WAIT_MS
+      ) {
+        await sleep(err.retryAfterMs + 250);
+        return this.request(model, messages);
+      }
+      throw err;
+    }
   }
 
   private async discoverModel(): Promise<string | undefined> {
@@ -104,7 +139,7 @@ export class GroqClient implements AiClient {
         Authorization: `Bearer ${this.options.apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ model, messages, temperature: 0.3, max_tokens: 700 }),
+      body: JSON.stringify({ model, messages, temperature: 0.3, max_tokens: 500 }),
       signal: AbortSignal.timeout(30_000),
     });
     const body = (await res.json().catch(() => null)) as {
@@ -112,7 +147,10 @@ export class GroqClient implements AiClient {
       error?: { message?: string };
     } | null;
 
-    if (!res.ok) throw new AiError(res.status, body?.error?.message ?? `HTTP ${res.status}`);
+    if (!res.ok) {
+      const message = body?.error?.message ?? `HTTP ${res.status}`;
+      throw new AiError(res.status, message, res.status === 429 ? parseRetryAfter(res, message) : undefined);
+    }
     const text = body?.choices?.[0]?.message?.content?.trim();
     if (!text) throw new AiError(502, "AI bo'sh javob qaytardi");
     return text;

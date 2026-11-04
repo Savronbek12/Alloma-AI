@@ -1,0 +1,170 @@
+import { describe, expect, it } from "vitest";
+import { AI_COOLDOWN_MS, AllomaBot } from "../src/bot/alloma-bot.js";
+import { ConversationStore } from "../src/bot/conversation.js";
+import { buildAiMessages, detectEra, stripMarkdown } from "../src/bot/format.js";
+import { GroqClient, type AiClient, type ChatMessage } from "../src/bot/groq.js";
+import type { BotApi, TgUpdate } from "../src/bot/telegram-api.js";
+import { createContainer } from "../src/container.js";
+
+const service = createContainer().allomaService;
+
+class FakeApi implements BotApi {
+  texts: string[] = [];
+  async call<T>(method: string, params: Record<string, unknown> = {}): Promise<T> {
+    if (method === "sendMessage") this.texts.push(String(params.text));
+    return true as T;
+  }
+}
+
+/** Har bir so'rovni yozib boradi va oldindan berilgan javoblarni navbat bilan qaytaradi. */
+class ScriptedAi implements AiClient {
+  calls: ChatMessage[][] = [];
+  constructor(private readonly replies: string[]) {}
+  async complete(messages: ChatMessage[]): Promise<string> {
+    this.calls.push(messages);
+    return this.replies[this.calls.length - 1] ?? "Albatta!";
+  }
+}
+
+const msg = (text: string, chatId = 7): TgUpdate => ({
+  update_id: 1,
+  message: { message_id: 1, chat: { id: chatId, type: "private" }, text },
+});
+
+function setup(replies: string[]) {
+  let t = 1_000_000;
+  const api = new FakeApi();
+  const ai = new ScriptedAi(replies);
+  const bot = new AllomaBot({ api, service, ai, log: () => {}, now: () => t });
+  const tick = (ms = AI_COOLDOWN_MS) => {
+    t += ms;
+  };
+  return { api, ai, bot, tick };
+}
+
+describe("Suhbat xotirasi", () => {
+  it("oldingi savol-javobni keyingi so'rovga qo'shadi", async () => {
+    const { ai, bot, tick } = setup(["Alisher Navoiy Hirotda tug'ilgan.", "Uning asosiy asari — Xamsa."]);
+    await bot.handleUpdate(msg("Navoiy qayerda tug'ilgan?"));
+    tick();
+    await bot.handleUpdate(msg("Uning asarlari-chi?"));
+
+    const second = ai.calls[1] ?? [];
+    expect(second.map((m) => m.role)).toEqual(["system", "user", "assistant", "user"]);
+    expect(second[1]?.content).toBe("Navoiy qayerda tug'ilgan?");
+    expect(second[2]?.content).toBe("Alisher Navoiy Hirotda tug'ilgan.");
+    expect(second[3]?.content).toBe("Uning asarlari-chi?");
+  });
+
+  it("«uning» kabi savolda oldin muhokama qilingan alloma ma'lumoti kontekstda qoladi", async () => {
+    const { ai, bot, tick } = setup(["Alisher Navoiy Hirotda tug'ilgan.", "Xamsa va boshqalar."]);
+    await bot.handleUpdate(msg("Navoiy qayerda tug'ilgan?"));
+    tick();
+    await bot.handleUpdate(msg("Uning asarlari-chi?"));
+    expect(ai.calls[1]?.[0]?.content).toContain("### Alisher Navoiy");
+  });
+
+  it("oddiy suhbat (salomlashish) ham AI orqali javob oladi", async () => {
+    const { api, ai, bot } = setup(["Va alaykum assalom! Yaxshi, rahmat."]);
+    await bot.handleUpdate(msg("Assalomu alaykum, qalaysan?"));
+    expect(ai.calls).toHaveLength(1);
+    expect(api.texts.at(-1)).toBe("Va alaykum assalom! Yaxshi, rahmat.");
+  });
+
+  it("chatlar bir-biridan ajratilgan", async () => {
+    const { ai, bot, tick } = setup(["Javob A", "Javob B"]);
+    await bot.handleUpdate(msg("Navoiy haqida", 1));
+    tick();
+    await bot.handleUpdate(msg("Salom", 2));
+    expect(ai.calls[1]?.map((m) => m.role)).toEqual(["system", "user"]);
+  });
+
+  it("/yangi suhbatni tozalaydi", async () => {
+    const { api, ai, bot, tick } = setup(["Birinchi", "Ikkinchi"]);
+    await bot.handleUpdate(msg("Navoiy qayerda tug'ilgan?"));
+    await bot.handleUpdate(msg("/yangi"));
+    expect(api.texts.at(-1)).toContain("yangidan boshlandi");
+    tick();
+    await bot.handleUpdate(msg("Salom"));
+    expect(ai.calls[1]?.map((m) => m.role)).toEqual(["system", "user"]);
+  });
+});
+
+describe("AI so'rovi hajmi (bepul tarif limiti)", () => {
+  it("oddiy savolda barcha 103 alloma ro'yxati yuborilmaydi va so'rov ixcham", () => {
+    const relevant = service.findRelevant("Navoiy qayerda tug'ilgan?", 5);
+    const [system] = buildAiMessages("Navoiy qayerda tug'ilgan?", service.all(), relevant);
+    expect(system?.content).toContain("### Alisher Navoiy");
+    expect(system?.content).not.toContain("O'rol Tansiqboyev");
+    // ~4 belgi ≈ 1 token: tizim ko'rsatmasi ~1500 tokendan oshmasin.
+    expect(system?.content.length ?? 0).toBeLessThan(6000);
+  });
+
+  it("savolda davr tilga olinsa — o'sha davr ro'yxati qo'shiladi", () => {
+    const [system] = buildAiMessages("Temuriylar davri olimlari kimlar?", service.all(), []);
+    expect(system?.content).toContain("Temuriylar davri (XIV–XVI asrlar) allomalari:");
+    expect(system?.content).toContain("- Mirzo Ulug'bek");
+    expect(system?.content).not.toContain("- Abdulla Qodiriy");
+  });
+
+  it("AI ro'yxatidagi * va - belgilari • ga aylanadi", () => {
+    expect(stripMarkdown("Jadidlar:\n*   Behbudiy\n- Fitrat")).toBe("Jadidlar:\n• Behbudiy\n• Fitrat");
+  });
+
+  it("detectEra turli yozuvlarni taniydi", () => {
+    expect(detectEra("Jadidlar kimlar edi?")).toBe("jadidlar");
+    expect(detectEra("Temuriylar davrida kimlar yashagan")).toBe("temuriylar");
+    expect(detectEra("Salom")).toBeUndefined();
+  });
+});
+
+describe("GroqClient limit", () => {
+  it("429 da kutish qisqa bo'lsa — kutib, o'sha modelga qayta urinadi", async () => {
+    let calls = 0;
+    const fetchFn = async () => {
+      calls++;
+      if (calls === 1) {
+        return new Response(
+          JSON.stringify({ error: { message: "Rate limit reached ... Please try again in 5ms." } }),
+          { status: 429 },
+        );
+      }
+      return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200 });
+    };
+    const client = new GroqClient({ apiKey: "k", model: "m", fetchFn: fetchFn as unknown as typeof fetch });
+    await expect(client.complete([{ role: "user", content: "x" }])).resolves.toBe("ok");
+    expect(calls).toBe(2);
+  });
+});
+
+describe("ConversationStore", () => {
+  it("muddati o'tgan suhbatni unutadi", () => {
+    const store = new ConversationStore({ ttlMs: 1000 });
+    store.append(1, "savol", "javob", ["alisher-navoiy"], 0);
+    expect(store.get(1, 500).messages).toHaveLength(2);
+    expect(store.get(1, 2000).messages).toHaveLength(0);
+    expect(store.get(1, 2000).recentSlugs).toHaveLength(0);
+  });
+
+  it("standart holatda oxirgi 8 ta xabar saqlanadi", () => {
+    const store = new ConversationStore();
+    for (let i = 1; i <= 6; i++) store.append(1, `s${i}`, `j${i}`, [], i);
+    expect(store.get(1, 7).messages).toHaveLength(8);
+  });
+
+  it("faqat oxirgi N ta xabarni saqlaydi", () => {
+    const store = new ConversationStore({ maxMessages: 4 });
+    for (let i = 1; i <= 5; i++) store.append(1, `s${i}`, `j${i}`, [], i);
+    expect(store.get(1, 6).messages.map((m) => m.content)).toEqual(["s4", "j4", "s5", "j5"]);
+  });
+
+  it("chatlar soni chegaradan oshsa, eng eskisini o'chiradi", () => {
+    const store = new ConversationStore({ maxChats: 2 });
+    store.append(1, "a", "b", [], 1);
+    store.append(2, "a", "b", [], 2);
+    store.append(3, "a", "b", [], 3);
+    expect(store.size).toBe(2);
+    expect(store.get(1, 4).messages).toHaveLength(0);
+    expect(store.get(3, 4).messages).toHaveLength(2);
+  });
+});
