@@ -109,6 +109,25 @@ Eslatma: bepul tarifda oyiga 750 soat beriladi — bitta servis 24/7 ishlashi uc
 (≈744 soat), lekin shu hisobdagi boshqa bepul servislar bilan bo'lishiladi. Kafolatli 24/7 uchun
 pullik "Starter" tarifiga o'tish mumkin.
 
+## Telegram bot
+
+Bot sayt bilan bitta serverda ishlaydi (`src/bot/`). Production'da Telegram xabarlarni
+`POST /telegram/webhook` ga yuboradi (maxfiy sarlavha bilan tekshiriladi).
+
+| Imkoniyat              | Tavsif                                                                 |
+| ---------------------- | ---------------------------------------------------------------------- |
+| Oddiy savol            | Groq AI saytdagi ma'lumotlarga tayanib o'zbekcha javob beradi          |
+| Ism yozish             | `Beruniy` — rasmli kartochka (rasm muallifi va litsenziyasi bilan)     |
+| `/tasodifiy`           | Tasodifiy alloma                                                       |
+| `/qidir <so'z>`        | Qidiruv natijalari tugmalar bilan                                      |
+| `/davrlar`             | Davr → allomalar ro'yxati                                              |
+
+Sozlash: `TELEGRAM_BOT_TOKEN` (@BotFather) va `GROQ_API_KEY` (console.groq.com, bepul) ni
+Render → Environment bo'limiga qo'shing. Token bo'lmasa sayt botsiz ishlayveradi; Groq kaliti
+bo'lmasa buyruqlar ishlaydi, AI javoblari o'chiq bo'ladi. Bepul kvotani himoya qilish uchun
+bitta chatdan AI so'rovlari orasida 5 soniya cheklov bor; asosiy model limitga yetsa
+`GROQ_FALLBACK_MODEL` ishlatiladi.
+
 ## Yangi alloma qo'shish
 
 Tegishli davr faylini oching (masalan, `src/data/allomalar/temuriylar.ts`) va yozuv qo'shing:

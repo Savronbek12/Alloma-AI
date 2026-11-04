@@ -1,6 +1,7 @@
 import cors from "cors";
 import express, { type Express } from "express";
 import helmet from "helmet";
+import { TELEGRAM_WEBHOOK_PATH } from "./bot/index.js";
 import { env } from "./config/env.js";
 import type { Container } from "./container.js";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler.js";
@@ -24,6 +25,10 @@ export function createApp(container: Container): Express {
   app.use(cors({ origin: env.CORS_ORIGIN }));
   app.use(express.json({ limit: "100kb" }));
   if (!env.isTest) app.use(requestLogger);
+
+  if (container.telegram) {
+    app.post(TELEGRAM_WEBHOOK_PATH, container.telegram.webhookHandler);
+  }
 
   app.use("/api", createApiRouter(container.allomaService));
   app.use("/api", notFoundHandler);

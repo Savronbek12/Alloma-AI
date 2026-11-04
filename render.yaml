@@ -18,3 +18,8 @@ services:
         value: "22"
       - key: CORS_ORIGIN
         value: "*"
+      # Maxfiy kalitlar — qiymatlari Render panelida (Environment) kiritiladi, git'ga yozilmaydi.
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
