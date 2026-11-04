@@ -18,6 +18,22 @@ export interface TelegramRuntime {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** /api/health da ko'rsatiladigan bot holati (maxfiy qiymatlarsiz) — muammolarni tashqaridan aniqlash uchun. */
+export interface BotStatus {
+  enabled: boolean;
+  mode?: "webhook" | "polling";
+  ai: boolean;
+  /** Bot o'chiq yoki xato bo'lsa — sababi. */
+  reason?: string;
+  webhook?: "o'rnatildi" | "xato";
+}
+
+let botStatus: BotStatus = { enabled: false, ai: false, reason: "ishga tushirilmagan" };
+
+export function getBotStatus(): BotStatus {
+  return botStatus;
+}
+
 /** Telegram webhook: maxfiy sarlavhani tekshiradi, darhol 200 qaytarib, xabarni fonda qayta ishlaydi. */
 export function createWebhookHandler(
   bot: Pick<AllomaBot, "handleUpdate">,
@@ -41,7 +57,25 @@ export function createWebhookHandler(
  */
 export function createTelegramRuntime(service: AllomaService): TelegramRuntime | undefined {
   const token = env.TELEGRAM_BOT_TOKEN;
-  if (!token || env.TELEGRAM_MODE === "off") return undefined;
+  const ai = Boolean(env.GROQ_API_KEY);
+  if (!token) {
+    botStatus = { enabled: false, ai, reason: "TELEGRAM_BOT_TOKEN muhit o'zgaruvchisi topilmadi" };
+    console.log("[bot] o'chiq: TELEGRAM_BOT_TOKEN yo'q");
+    return undefined;
+  }
+  if (!/^\d{5,}:[A-Za-z0-9_-]{30,}$/.test(token)) {
+    botStatus = {
+      enabled: false,
+      ai,
+      reason: "TELEGRAM_BOT_TOKEN formati noto'g'ri (to'liq nusxalanganini tekshiring: 123456789:AA…)",
+    };
+    console.error(`[bot] o'chiq: ${botStatus.reason}`);
+    return undefined;
+  }
+  if (env.TELEGRAM_MODE === "off") {
+    botStatus = { enabled: false, ai, reason: "TELEGRAM_MODE=off" };
+    return undefined;
+  }
 
   const mode =
     env.TELEGRAM_MODE === "auto"
@@ -50,28 +84,37 @@ export function createTelegramRuntime(service: AllomaService): TelegramRuntime |
         : undefined
       : env.TELEGRAM_MODE;
   if (!mode) {
-    console.log("[bot] lokal rejimda o'chiq (sinash uchun TELEGRAM_MODE=polling qo'ying)");
+    botStatus = {
+      enabled: false,
+      ai,
+      reason: env.isProduction
+        ? "sayt manzili noma'lum (PUBLIC_URL yoki RENDER_EXTERNAL_URL yo'q)"
+        : "lokal rejim (sinash uchun TELEGRAM_MODE=polling)",
+    };
+    console.log(`[bot] o'chiq: ${botStatus.reason}`);
     return undefined;
   }
   if (mode === "webhook" && !env.publicUrl) {
-    console.error("[bot] webhook uchun PUBLIC_URL yoki RENDER_EXTERNAL_URL kerak — bot o'chirildi");
+    botStatus = { enabled: false, ai, reason: "webhook uchun PUBLIC_URL yoki RENDER_EXTERNAL_URL kerak" };
+    console.error(`[bot] o'chiq: ${botStatus.reason}`);
     return undefined;
   }
+  botStatus = { enabled: true, mode, ai };
 
   const api = new TelegramApi(token);
-  const ai = env.GROQ_API_KEY
+  const aiClient = env.GROQ_API_KEY
     ? new GroqClient({
         apiKey: env.GROQ_API_KEY,
         model: env.GROQ_MODEL,
         fallbackModel: env.GROQ_FALLBACK_MODEL,
       })
     : undefined;
-  if (!ai) console.warn("[bot] GROQ_API_KEY yo'q — AI javoblari o'chiq, buyruqlar ishlaydi");
+  if (!aiClient) console.warn("[bot] GROQ_API_KEY yo'q — AI javoblari o'chiq, buyruqlar ishlaydi");
 
   const bot = new AllomaBot({
     api,
     service,
-    ai,
+    ai: aiClient,
     siteUrl: env.publicUrl,
     identity: { name: env.BOT_NAME, creator: env.BOT_CREATOR },
   });
@@ -105,12 +148,19 @@ export function createTelegramRuntime(service: AllomaService): TelegramRuntime |
         // paytda to'plangan eski xabarlarni tashlab yuboramiz: aks holda bot ularning hammasiga
         // birdaniga javob berib, bepul AI limitini bir zumda tugatadi.
         const firstSetup = info?.url !== url;
-        await api.call("setWebhook", {
-          url,
-          secret_token: secret,
-          allowed_updates: ["message", "callback_query"],
-          drop_pending_updates: firstSetup,
-        });
+        try {
+          await api.call("setWebhook", {
+            url,
+            secret_token: secret,
+            allowed_updates: ["message", "callback_query"],
+            drop_pending_updates: firstSetup,
+          });
+          botStatus = { ...botStatus, webhook: "o'rnatildi" };
+        } catch (err) {
+          // Masalan: token noto'g'ri nusxalangan (bo'shliq, qo'shtirnoq) yoki /revoke qilingan.
+          botStatus = { ...botStatus, webhook: "xato", reason: (err as Error).message };
+          throw err;
+        }
         console.log(
           `[bot] webhook o'rnatildi: ${url}` +
             (firstSetup && info?.pending_update_count

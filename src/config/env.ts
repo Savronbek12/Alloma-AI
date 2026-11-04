@@ -8,6 +8,16 @@ try {
   /* .env yo'q — muammo emas */
 }
 
+/**
+ * Maxfiy kalitlar uchun yumshoq sxema: atrofidagi bo'shliq va qo'shtirnoqlarni olib tashlaydi,
+ * bo'sh qiymatni "berilmagan" deb hisoblaydi. Format xato bo'lsa sayt yiqilmaydi —
+ * tegishli funksiya (bot/AI) o'zi tekshirib, sababini /api/health da ko'rsatadi.
+ */
+const secret = z
+  .string()
+  .optional()
+  .transform((v) => v?.trim().replace(/^["']+|["']+$/g, "").trim() || undefined);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
@@ -23,7 +33,7 @@ const envSchema = z.object({
   PUBLIC_URL: z.string().url().optional(),
 
   // --- Telegram bot ---
-  TELEGRAM_BOT_TOKEN: z.string().min(20).optional(),
+  TELEGRAM_BOT_TOKEN: secret,
   /** Webhook so'rovlarini tekshirish uchun maxfiy kalit (berilmasa tokendan hosil qilinadi). */
   TELEGRAM_WEBHOOK_SECRET: z
     .string()
@@ -40,7 +50,7 @@ const envSchema = z.object({
   BOT_CREATOR: z.string().min(1).default("Savronbek"),
 
   // --- Groq AI (bepul tarif) ---
-  GROQ_API_KEY: z.string().min(10).optional(),
+  GROQ_API_KEY: secret,
   // 2026-11 holatiga ko'ra mavjud modellar; o'chirilsa GroqClient o'zi mos modelni topadi.
   GROQ_MODEL: z.string().default("qwen/qwen3.8-27b"),
   GROQ_FALLBACK_MODEL: z.string().default("openai/gpt-oss-20b"),
