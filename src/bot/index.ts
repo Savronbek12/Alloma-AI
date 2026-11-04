@@ -98,12 +98,25 @@ export function createTelegramRuntime(service: AllomaService): TelegramRuntime |
 
       if (mode === "webhook") {
         const url = `${env.publicUrl}${TELEGRAM_WEBHOOK_PATH}`;
+        const info = await api
+          .call<{ url: string; pending_update_count: number }>("getWebhookInfo")
+          .catch(() => undefined);
+        // Webhook birinchi marta (yoki boshqa manzildan) o'rnatilayotgan bo'lsa — bot o'chiq turgan
+        // paytda to'plangan eski xabarlarni tashlab yuboramiz: aks holda bot ularning hammasiga
+        // birdaniga javob berib, bepul AI limitini bir zumda tugatadi.
+        const firstSetup = info?.url !== url;
         await api.call("setWebhook", {
           url,
           secret_token: secret,
           allowed_updates: ["message", "callback_query"],
+          drop_pending_updates: firstSetup,
         });
-        console.log(`[bot] webhook o'rnatildi: ${url}`);
+        console.log(
+          `[bot] webhook o'rnatildi: ${url}` +
+            (firstSetup && info?.pending_update_count
+              ? ` (eski ${info.pending_update_count} ta xabar tashlab yuborildi)`
+              : ""),
+        );
         return;
       }
 
