@@ -456,6 +456,11 @@ p {
   outline-offset: -1px;
   border-radius: inherit;
 }
+.portrait--contain img {
+  padding: var(--s1);
+  object-fit: contain;
+  outline: none;
+}
 .portrait--mono {
   font-family: var(--font-text);
   font-size: var(--step-3);

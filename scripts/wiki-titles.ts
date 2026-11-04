@@ -8,6 +8,61 @@ export const BLOCKED_IMAGES: ReadonlySet<string> = new Set([
   "muhammad-yusuf-bayoniy", // uz:Bayoniy sahifasida Pahlavon Mahmud maqbarasi turibdi
 ]);
 
+/**
+ * Qo'shimcha sarlavhalar (rus va o'zbek Wikipedia). Inglizcha sahifada rasm bo'lmaganda sinaladi.
+ * O'zbekcha sarlavhalarda "ʻ" (U+02BB) ishlatiladi — uz.wikipedia shunday yozadi.
+ */
+export const EXTRA_TITLES: Record<string, string[]> = {
+  "al-hakim-at-termiziy": ["ru:Хаким ат-Тирмизи", "uz:Hakim Termiziy"],
+  "imom-ad-doramiy": ["ru:Ад-Дарими", "uz:Imom Doramiy"],
+  "abu-bakr-al-qaffol-ash-shoshiy": ["ru:Абу Бакр аль-Каффаль аш-Шаши", "uz:Qaffol Shoshiy"],
+  "abu-lays-as-samarqandiy": ["ru:Абу-ль-Лайс ас-Самарканди", "uz:Abu Lays Samarqandiy"],
+  "abul-muin-an-nasafiy": ["ru:Абу-ль-Муин ан-Насафи", "uz:Abul Muin Nasafiy"],
+  "najmuddin-umar-an-nasafiy": ["ru:Наджм ад-Дин ан-Насафи", "uz:Najmiddin Abu Hafs Nasafiy"],
+  "burhoniddin-al-marginoniy": ["ru:Бурхануддин аль-Маргинани", "uz:Burhoniddin Margʻinoniy"],
+  "abu-nasr-ibn-iroq": ["ru:Абу Наср ибн Ирак", "uz:Abu Nasr ibn Iroq"],
+  "abu-abdulloh-al-xorazmiy": ["ru:Абу Абдаллах аль-Хорезми"],
+  "ahmad-yugnakiy": ["ru:Ахмед Югнеки", "uz:Ahmad Yugnakiy"],
+  "abu-hafs-kabir-buxoriy": ["ru:Абу Хафс аль-Кабир", "uz:Abu Hafs Kabir"],
+  "nosiruddin-rabguziy": ["ru:Рабгузи", "uz:Rabgʻuziy"],
+  "hofiz-xorazmiy": ["ru:Хафиз Хорезми", "uz:Hofiz Xorazmiy"],
+  "mavlono-lutfiy": ["ru:Лютфи", "uz:Lutfiy"],
+  atoiy: ["ru:Атаи", "uz:Atoiy"],
+  sakkokiy: ["ru:Саккаки (поэт)", "uz:Sakkokiy"],
+  gadoiy: ["ru:Гадаи", "uz:Gadoiy"],
+  durbek: ["ru:Дурбек", "uz:Durbek"],
+  "haydar-xorazmiy": ["ru:Хайдар Хорезми", "uz:Haydar Xorazmiy"],
+  mushfiqiy: ["ru:Мушфики", "uz:Mushfiqiy"],
+  "hofiz-tanish-buxoriy": ["ru:Хафиз Таныш Бухари", "uz:Hofiz Tanish Buxoriy"],
+  "abulgozi-bahodirxon": ["ru:Абулгази", "uz:Abulgʻozi Bahodirxon"],
+  "sofi-olloyor": ["ru:Суфи Аллаяр", "uz:Soʻfi Olloyor"],
+  "turdi-farogiy": ["ru:Турди Фараги", "uz:Turdi Farogʻiy"],
+  "shermuhammad-munis": ["ru:Мунис Хорезми", "uz:Munis Xorazmiy"],
+  "muhammad-rizo-ogahiy": ["ru:Агехи", "uz:Ogahiy"],
+  "amiriy-umarxon": ["ru:Омар-хан", "uz:Umarxon"],
+  "jahon-otin-uvaysiy": ["ru:Увайси", "uz:Uvaysiy"],
+  gulxaniy: ["ru:Гульхани", "uz:Gulxaniy"],
+  maxmur: ["ru:Махмур", "uz:Maxmur"],
+  "komil-xorazmiy": ["ru:Камиль Хорезми", "uz:Komil Xorazmiy"],
+  "muhammad-aminxoja-muqimiy": ["ru:Мукими", "uz:Muqimiy"],
+  "ubaydulla-zavqiy": ["ru:Завки", "uz:Zavqiy"],
+  "zokirjon-furqat": ["ru:Фуркат", "uz:Furqat"],
+  "anbar-otin": ["ru:Анбар-Атын", "uz:Anbar Otin"],
+  "munavvar-qori-abdurashidxonov": ["ru:Мунаввар Кари Абдурашидханов", "uz:Munavvar qori"],
+  "avaz-otar": ["ru:Аваз Отар-оглы", "uz:Avaz Oʻtar"],
+  "usmon-nosir": ["ru:Насыр, Усман", "uz:Usmon Nosir"],
+  zulfiya: ["ru:Зульфия", "uz:Zulfiya"],
+  "pirimqul-qodirov": ["ru:Кадыров, Пиримкул", "uz:Pirimqul Qodirov"],
+  "odil-yoqubov": ["ru:Якубов, Адыл", "uz:Odil Yoqubov"],
+  "tohir-malik": ["ru:Малик, Тахир", "uz:Tohir Malik"],
+  "toshmuhammad-qori-niyoziy": ["ru:Кары-Ниязов, Ташмухамед Ниязович", "uz:Toshmuhammad Qori-Niyoziy"],
+  "ubay-orifov": ["ru:Арифов, Убай Арифович", "uz:Ubay Orifov"],
+  "obid-sodiqov": ["ru:Садыков, Абид Садыкович", "uz:Obid Sodiqov"],
+  "yahyo-gulomov": ["ru:Гулямов, Яхья Гулямович", "uz:Yahyo Gʻulomov"],
+  "mukarrama-turgunboyeva": ["ru:Тургунбаева, Мукаррам", "uz:Mukarrama Turgʻunboyeva"],
+  "orol-tansiqboyev": ["ru:Тансыкбаев, Урал Тансыкбаевич", "uz:Oʻrol Tansiqboyev"],
+};
+
 export const WIKI_TITLES: Record<string, string[]> = {
   // Ilk o'rta asrlar
   "muhammad-ibn-muso-al-xorazmiy": ["Al-Khwarizmi"],

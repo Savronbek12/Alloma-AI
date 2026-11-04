@@ -91,6 +91,24 @@ amalga oshiruvchi yangi klass yozib, `container.ts` da almashtirish kifoya — q
 Misol: `GET /api/allomalar?q=gafur&field=adabiyot` — qidiruv apostroflarga sezgir emas
 (`G'afur`, `Gʻafur`, `gafur` bir xil topiladi). Noto'g'ri parametrlar `400` bilan batafsil xato qaytaradi.
 
+## Render'ga joylash va keep-alive
+
+Sayt `render.yaml` (Blueprint) orqali Render'ga joylanadi; `main` ga har push avtomatik deploy qiladi.
+
+Render bepul tarifi 15 daqiqa so'rov bo'lmasa servisni uxlatadi. Buning oldini olish uchun server
+production'da o'zining ommaviy manziliga (`RENDER_EXTERNAL_URL`, Render avtomatik beradi) har
+10 daqiqada `/api/health` so'rovini yuboradi (`src/services/keep-alive.ts`).
+
+| O'zgaruvchi                   | Standart | Tavsif                                      |
+| ----------------------------- | -------- | ------------------------------------------- |
+| `KEEP_ALIVE`                  | `true`   | `false` — o'chirish                         |
+| `KEEP_ALIVE_INTERVAL_MINUTES` | `10`     | 1–14 daqiqa (Render chegarasi 15 daqiqa)    |
+| `KEEP_ALIVE_URL`              | —        | Boshqa domen ishlatilsa, qo'lda manzil      |
+
+Eslatma: bepul tarifda oyiga 750 soat beriladi — bitta servis 24/7 ishlashi uchun yetadi
+(≈744 soat), lekin shu hisobdagi boshqa bepul servislar bilan bo'lishiladi. Kafolatli 24/7 uchun
+pullik "Starter" tarifiga o'tish mumkin.
+
 ## Yangi alloma qo'shish
 
 Tegishli davr faylini oching (masalan, `src/data/allomalar/temuriylar.ts`) va yozuv qo'shing:

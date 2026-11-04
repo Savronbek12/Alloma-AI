@@ -41,7 +41,8 @@ export function renderTimeline(meta: Meta, active: string | undefined): string {
 function portrait(a: Alloma): string {
   const mark = monogram(a.name);
   if (!a.image) return `<span class="portrait portrait--mono" aria-hidden="true">${e(mark)}</span>`;
-  return `<span class="portrait">
+  const fit = a.image.fit === "contain" ? " portrait--contain" : "";
+  return `<span class="portrait${fit}">
       <img src="${e(a.image.src)}" alt="" loading="lazy" decoding="async" data-fallback="${e(mark)}" />
     </span>`;
 }

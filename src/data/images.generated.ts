@@ -82,6 +82,15 @@ export const allomaImages: Readonly<Record<string, AllomaImage>> = {
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:DeBoukhara_Cover.jpg",
     "wikiPage": "https://en.wikipedia.org/wiki/Narshakhi"
   },
+  "abu-lays-as-samarqandiy": {
+    "src": "/images/allomalar/abu-lays-as-samarqandiy.png",
+    "alt": "Abu Lays as-Samarqandiy ismining arabcha xattotlik yozuvi",
+    "author": "Medineli92",
+    "license": "CC BY-SA 4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Abu_al-Layth_al-Samarqandi.png",
+    "wikiPage": "https://uz.wikipedia.org/wiki/Abu_Lays_Samarqandiy",
+    "fit": "contain"
+  },
   "abu-mansur-al-moturidiy": {
     "src": "/images/allomalar/abu-mansur-al-moturidiy.jpg",
     "alt": "Abu Mansur al-Moturidiy tasviri",
@@ -106,6 +115,15 @@ export const allomaImages: Readonly<Record<string, AllomaImage>> = {
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Biruni-russian.jpg",
     "wikiPage": "https://en.wikipedia.org/wiki/Al-Biruni"
   },
+  "abul-muin-an-nasafiy": {
+    "src": "/images/allomalar/abul-muin-an-nasafiy.png",
+    "alt": "Abul Mu'in an-Nasafiy ismining arabcha xattotlik yozuvi",
+    "author": "ShafiNotes",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Abu_al-Mu%27in_al-Nasafi.png",
+    "wikiPage": "https://en.wikipedia.org/wiki/Abu_al-Mu'in_al-Nasafi",
+    "fit": "contain"
+  },
   "ahmad-al-fargoniy": {
     "src": "/images/allomalar/ahmad-al-fargoniy.jpg",
     "alt": "Ahmad al-Farg'oniy tasviri",
@@ -129,6 +147,14 @@ export const allomaImages: Readonly<Record<string, AllomaImage>> = {
     "license": "CC BY-SA 4.0",
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ahmad_Yasawi_miniature.png",
     "wikiPage": "https://en.wikipedia.org/wiki/Ahmad_Yasawi"
+  },
+  "al-hakim-at-termiziy": {
+    "src": "/images/allomalar/al-hakim-at-termiziy.jpg",
+    "alt": "Al-Hakim at-Termiziy maqbarasi majmuasi (Termiz)",
+    "author": "The original uploader was Lechhansl at German Wikipedia.",
+    "license": "CC BY-SA 3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Khakim-at-Termezi-Komplex_Gesamt.jpg",
+    "wikiPage": "https://ru.wikipedia.org/wiki/%D0%90%D0%BB%D1%8C-%D0%A5%D0%B0%D0%BA%D0%B8%D0%BC_%D0%B0%D1%82-%D0%A2%D0%B8%D1%80%D0%BC%D0%B8%D0%B7%D0%B8"
   },
   "ali-qushchi": {
     "src": "/images/allomalar/ali-qushchi.jpg",
@@ -169,6 +195,15 @@ export const allomaImages: Readonly<Record<string, AllomaImage>> = {
     "license": "CC0",
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mashrab-babarahim.jpg",
     "wikiPage": "https://en.wikipedia.org/wiki/Mashrab"
+  },
+  "burhoniddin-al-marginoniy": {
+    "src": "/images/allomalar/burhoniddin-al-marginoniy.png",
+    "alt": "Burhoniddin al-Marg'inoniy ismining arabcha xattotlik yozuvi",
+    "author": "ShafiNotes",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Al-Marghinani.png",
+    "wikiPage": "https://ru.wikipedia.org/wiki/%D0%91%D1%83%D1%80%D1%85%D0%B0%D0%BD%D1%83%D0%B4%D0%B4%D0%B8%D0%BD_%D0%B0%D0%BB%D1%8C-%D0%9C%D0%B0%D1%80%D0%B3%D0%B8%D0%BD%D0%B0%D0%BD%D0%B8",
+    "fit": "contain"
   },
   "erkin-vohidov": {
     "src": "/images/allomalar/erkin-vohidov.jpg",
@@ -233,6 +268,15 @@ export const allomaImages: Readonly<Record<string, AllomaImage>> = {
     "license": "Public domain",
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Portrait_of_Sultan_Husayn_Mirza_Bayqara_at_the_age_of_about_50_years._1500%E2%80%9325_copy_from_Behz%C4%81d%27s_original_of_about_1490.jpg",
     "wikiPage": "https://en.wikipedia.org/wiki/Sultan_Husayn_Bayqara"
+  },
+  "imom-ad-doramiy": {
+    "src": "/images/allomalar/imom-ad-doramiy.png",
+    "alt": "Imom ad-Doramiy ismining arabcha xattotlik yozuvi",
+    "author": "Kokwol",
+    "license": "CC0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:IMGADDARIMI.png",
+    "wikiPage": "https://ru.wikipedia.org/wiki/%D0%90%D0%B4-%D0%94%D0%B0%D1%80%D0%B8%D0%BC%D0%B8",
+    "fit": "contain"
   },
   "imom-al-buxoriy": {
     "src": "/images/allomalar/imom-al-buxoriy.jpg",
@@ -329,6 +373,15 @@ export const allomaImages: Readonly<Record<string, AllomaImage>> = {
     "license": "CC BY-SA 3.0",
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Najm_ad-Din_al-Kubra_Mausoleum.JPG",
     "wikiPage": "https://en.wikipedia.org/wiki/Najm_al-Din_Kubra"
+  },
+  "najmuddin-umar-an-nasafiy": {
+    "src": "/images/allomalar/najmuddin-umar-an-nasafiy.png",
+    "alt": "Najmuddin Umar an-Nasafiy ismining arabcha xattotlik yozuvi",
+    "author": "عبد العزيز علي",
+    "license": "Public domain",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%D8%A3%D8%A8%D9%88_%D8%AD%D9%81%D8%B5_%D8%A7%D9%84%D9%86%D8%B3%D9%81%D9%8A.png",
+    "wikiPage": "https://ru.wikipedia.org/wiki/%D0%9D%D0%B0%D0%B4%D0%B6%D0%BC_%D0%B0%D0%B4-%D0%94%D0%B8%D0%BD_%D0%B0%D0%BD-%D0%9D%D0%B0%D1%81%D0%B0%D1%84%D0%B8",
+    "fit": "contain"
   },
   "nodirabegim": {
     "src": "/images/allomalar/nodirabegim.jpg",

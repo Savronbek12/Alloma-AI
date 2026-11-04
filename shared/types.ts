@@ -9,6 +9,8 @@ export interface AllomaImage {
   /** Rasmning asl manbasi (Wikimedia Commons sahifasi). */
   sourceUrl: string;
   wikiPage?: string;
+  /** "contain" — doira shaklidagi xattotlik kabi kesilmasligi kerak bo'lgan tasvirlar uchun. */
+  fit?: "cover" | "contain";
 }
 
 export interface Alloma {
