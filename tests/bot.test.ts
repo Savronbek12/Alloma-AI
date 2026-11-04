@@ -2,7 +2,7 @@ import express from "express";
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
 import { AI_COOLDOWN_MS, AllomaBot } from "../src/bot/alloma-bot.js";
-import { allomaCaption } from "../src/bot/format.js";
+import { allomaCaption, stripMarkdown } from "../src/bot/format.js";
 import { AiError, GroqClient, type AiClient, type ChatMessage } from "../src/bot/groq.js";
 import { createTelegramRuntime, createWebhookHandler } from "../src/bot/index.js";
 import type { BotApi, TgUpdate } from "../src/bot/telegram-api.js";
@@ -148,6 +148,12 @@ describe("AllomaBot AI javoblari", () => {
 });
 
 describe("format", () => {
+  it("AI javobidagi Markdown belgilari tozalanadi", () => {
+    expect(stripMarkdown("Asoschisi – **Muhammad al-Xorazmiy**.\n## Asarlar\n`Zij`")).toBe(
+      "Asoschisi – Muhammad al-Xorazmiy.\nAsarlar\nZij",
+    );
+  });
+
   it("kartochka matni HTML belgilaridan himoyalangan", () => {
     const a = { ...service.getBySlug("alisher-navoiy"), bio: "<script>x</script> & y" };
     const caption = allomaCaption(a);
@@ -170,6 +176,38 @@ describe("GroqClient", () => {
     const client = new GroqClient({ apiKey: "k", model: "big", fallbackModel: "small", fetchFn: fetchFn as unknown as typeof fetch });
     await expect(client.complete([{ role: "user", content: "x" }])).resolves.toBe("salom");
     expect(models).toEqual(["big", "small"]);
+  });
+
+  it("ikkala model ham o'chirilgan bo'lsa — mavjud chat modelini o'zi topadi", async () => {
+    const used: string[] = [];
+    const fetchFn = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).endsWith("/models")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              { id: "whisper-large-v3", active: true },
+              { id: "meta-llama/llama-prompt-guard-2-22m", active: true },
+              { id: "openai/gpt-oss-20b", active: true },
+              { id: "qwen/qwen-next", active: true },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      const body = JSON.parse(String(init?.body)) as { model: string };
+      used.push(body.model);
+      if (body.model !== "qwen/qwen-next") {
+        return new Response(JSON.stringify({ error: { message: `The model \`${body.model}\` does not exist` } }), { status: 404 });
+      }
+      return new Response(JSON.stringify({ choices: [{ message: { content: "javob" } }] }), { status: 200 });
+    });
+    const client = new GroqClient({ apiKey: "k", model: "old-a", fallbackModel: "old-b", fetchFn: fetchFn as unknown as typeof fetch });
+    await expect(client.complete([{ role: "user", content: "x" }])).resolves.toBe("javob");
+    expect(used).toEqual(["old-a", "old-b", "qwen/qwen-next"]);
+    // Keyingi so'rov to'g'ridan-to'g'ri topilgan modelga boradi.
+    await client.complete([{ role: "user", content: "y" }]);
+    expect(used.at(-1)).toBe("qwen/qwen-next");
+    expect(used).toHaveLength(4);
   });
 
   it("401 bo'lsa zaxiraga o'tmay xato beradi", async () => {

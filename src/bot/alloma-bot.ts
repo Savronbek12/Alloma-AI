@@ -2,7 +2,14 @@ import { ERA_IDS, ERA_LABELS, ERA_PERIODS, type EraId } from "../../shared/const
 import type { Alloma } from "../../shared/types.js";
 import type { AllomaService } from "../services/alloma.service.js";
 import { normalizeForSearch } from "../utils/text.js";
-import { allomaButtonLabel, allomaCaption, buildAiMessages, escapeHtml, truncate } from "./format.js";
+import {
+  allomaButtonLabel,
+  allomaCaption,
+  buildAiMessages,
+  escapeHtml,
+  stripMarkdown,
+  truncate,
+} from "./format.js";
 import type { AiClient } from "./groq.js";
 import type { BotApi, InlineButton, TgCallbackQuery, TgMessage, TgUpdate } from "./telegram-api.js";
 
@@ -202,7 +209,7 @@ export class AllomaBot {
 
     let answer: string;
     try {
-      answer = await ai.complete(buildAiMessages(question, service.all(), relevant));
+      answer = stripMarkdown(await ai.complete(buildAiMessages(question, service.all(), relevant)));
     } catch (err) {
       this.log(`[bot] AI xato: ${(err as Error).message}`);
       await this.send(

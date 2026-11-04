@@ -37,8 +37,9 @@ const envSchema = z.object({
 
   // --- Groq AI (bepul tarif) ---
   GROQ_API_KEY: z.string().min(10).optional(),
-  GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),
-  GROQ_FALLBACK_MODEL: z.string().default("llama-3.1-8b-instant"),
+  // 2026-11 holatiga ko'ra mavjud modellar; o'chirilsa GroqClient o'zi mos modelni topadi.
+  GROQ_MODEL: z.string().default("qwen/qwen3.8-27b"),
+  GROQ_FALLBACK_MODEL: z.string().default("openai/gpt-oss-20b"),
 });
 
 const parsed = envSchema.safeParse(process.env);

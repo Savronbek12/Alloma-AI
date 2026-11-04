@@ -32,9 +32,19 @@ export interface GroqOptions {
   fetchFn?: typeof fetch;
 }
 
+/** Chat uchun yaramaydigan modellar (nutq, xavfsizlik filtrlari va h.k.). */
+const NON_CHAT_MODEL = /whisper|guard|orpheus|tts|safeguard|allam/i;
+/** Mavjud modellar ichidan tanlash tartibi. */
+const MODEL_PREFERENCE = [/qwen/i, /gpt-oss-20b/i, /gpt-oss/i, /llama/i];
+
+const isModelGone = (err: unknown) =>
+  err instanceof AiError && (err.status === 404 || /does not exist|decommissioned|not found/i.test(err.message));
+
 export class GroqClient implements AiClient {
   private readonly baseUrl: string;
   private readonly fetchFn: typeof fetch;
+  /** Asosiy va zaxira modellar o'chirilgan bo'lsa, avtomatik topilgan model. */
+  private discoveredModel: string | undefined;
 
   constructor(private readonly options: GroqOptions) {
     this.baseUrl = options.baseUrl ?? "https://api.groq.com/openai/v1";
@@ -42,17 +52,49 @@ export class GroqClient implements AiClient {
   }
 
   async complete(messages: ChatMessage[]): Promise<string> {
-    try {
-      return await this.request(this.options.model, messages);
-    } catch (err) {
-      const fallback = this.options.fallbackModel;
-      const retryable =
-        err instanceof AiError && (err.status === 429 || err.status === 404 || err.status === 503);
-      if (fallback && fallback !== this.options.model && retryable) {
-        return this.request(fallback, messages);
+    if (this.discoveredModel) return this.request(this.discoveredModel, messages);
+
+    let lastError: unknown;
+    const candidates = [this.options.model, this.options.fallbackModel].filter(
+      (m, i, arr): m is string => Boolean(m) && arr.indexOf(m) === i,
+    );
+    for (const model of candidates) {
+      try {
+        return await this.request(model, messages);
+      } catch (err) {
+        lastError = err;
+        const retryable =
+          err instanceof AiError && (err.status === 429 || err.status === 503 || isModelGone(err));
+        if (!retryable) throw err;
       }
-      throw err;
     }
+
+    // Ikkala model ham o'chirilgan — Groq'dan mavjud modellar ro'yxatini so'raymiz.
+    if (isModelGone(lastError)) {
+      const model = await this.discoverModel();
+      if (model) {
+        this.discoveredModel = model;
+        return this.request(model, messages);
+      }
+    }
+    throw lastError;
+  }
+
+  private async discoverModel(): Promise<string | undefined> {
+    const res = await this.fetchFn(`${this.baseUrl}/models`, {
+      headers: { Authorization: `Bearer ${this.options.apiKey}` },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return undefined;
+    const body = (await res.json().catch(() => null)) as { data?: { id: string; active?: boolean }[] } | null;
+    const ids = (body?.data ?? [])
+      .filter((m) => m.active !== false && !NON_CHAT_MODEL.test(m.id))
+      .map((m) => m.id);
+    for (const pattern of MODEL_PREFERENCE) {
+      const match = ids.find((id) => pattern.test(id));
+      if (match) return match;
+    }
+    return ids[0];
   }
 
   private async request(model: string, messages: ChatMessage[]): Promise<string> {
