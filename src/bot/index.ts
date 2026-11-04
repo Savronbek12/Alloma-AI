@@ -117,6 +117,7 @@ export function createTelegramRuntime(service: AllomaService): TelegramRuntime |
     ai: aiClient,
     siteUrl: env.publicUrl,
     identity: { name: env.BOT_NAME, creator: env.BOT_CREATOR },
+    partnerBot: env.PARTNER_BOT_USERNAME,
   });
   const secret =
     env.TELEGRAM_WEBHOOK_SECRET ?? createHash("sha256").update(`alloma-ai:${token}`).digest("hex").slice(0, 48);
@@ -131,6 +132,14 @@ export function createTelegramRuntime(service: AllomaService): TelegramRuntime |
     webhookHandler,
 
     async start() {
+      // O'z id va username'imiz: guruhda @mention/reply'ni aniqlash va o'z xabarlarimizni e'tiborsiz qoldirish uchun.
+      try {
+        const me = await api.call<{ id: number; username: string }>("getMe");
+        bot.setSelf({ id: me.id, username: me.username });
+      } catch (err) {
+        console.error("[bot] getMe:", (err as Error).message);
+      }
+
       await api.call("setMyCommands", { commands: BOT_COMMANDS }).catch((err: Error) =>
         console.warn("[bot] setMyCommands:", err.message),
       );

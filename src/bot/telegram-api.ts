@@ -4,11 +4,14 @@ export interface TgUser {
   id: number;
   first_name: string;
   username?: string;
+  is_bot?: boolean;
 }
 
 export interface TgChat {
   id: number;
+  /** "private" | "group" | "supergroup" | "channel" */
   type: string;
+  title?: string;
 }
 
 export interface TgMessage {
@@ -16,6 +19,8 @@ export interface TgMessage {
   chat: TgChat;
   from?: TgUser;
   text?: string;
+  /** Bu xabar qaysi xabarga reply qilingan (bot-bot suhbati shu orqali davom etadi). */
+  reply_to_message?: TgMessage;
 }
 
 export interface TgCallbackQuery {

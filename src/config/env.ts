@@ -48,6 +48,11 @@ const envSchema = z.object({
   /** Bot o'zini qanday tanishtiradi ("Mening ismim …, meni … yaratgan"). */
   BOT_NAME: z.string().min(1).max(64).default("Alloma AI"),
   BOT_CREATOR: z.string().min(1).default("Savronbek"),
+  /** Guruhda suhbatlashiladigan sherik bot (bo'sh qoldirilsa — o'chiq). @ belgisisiz. */
+  PARTNER_BOT_USERNAME: z
+    .string()
+    .default("sardorbai202bot")
+    .transform((v) => v.trim().replace(/^@/, "") || undefined),
 
   // --- Groq AI (bepul tarif) ---
   GROQ_API_KEY: secret,

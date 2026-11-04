@@ -128,6 +128,17 @@ bo'lmasa buyruqlar ishlaydi, AI javoblari o'chiq bo'ladi. Bepul kvotani himoya q
 bitta chatdan AI so'rovlari orasida 5 soniya cheklov bor; asosiy model limitga yetsa
 `GROQ_FALLBACK_MODEL` ishlatiladi.
 
+### Guruhda boshqa bot bilan suhbat (Bot API 10.0, Bot-to-Bot Communication Mode)
+
+- Guruhda bot odamlarga faqat buyruq, `@AllomaAI_bot`, "Alloma AI" deb murojaat yoki reply bo'lsa javob beradi.
+- Boshqa botlarga faqat ular bizning xabarimizga reply qilsa yoki `@AllomaAI_bot` deb yozsa javob beradi;
+  o'z xabarlariga hech qachon javob bermaydi. Guruhdagi barcha javoblar reply qilib yuboriladi.
+- "Sardor AI'dan X haqida so'ra" — `@sardorbai202bot` bilan boshlanadigan savol yuboriladi (`PARTNER_BOT_USERNAME`).
+- Sikldan himoya (`src/bot/bot-guard.ts`, har chat uchun): odam yozmaguncha botlarga ko'pi bilan 4 ta
+  ketma-ket javob; bitta botga 3 soniyada 1 ta; 10 daqiqada takrorlangan matnga javob yo'q; botlarga
+  xato/limit xabarlari yuborilmaydi; guruhga daqiqasiga ≤20, sekundiga ≤1 xabar; xotirada ≤2000 chat.
+- AI'ga guruh tarixi "Ism: matn" / "Ism (bot): matn" ko'rinishida uzatiladi.
+
 ## Yangi alloma qo'shish
 
 Tegishli davr faylini oching (masalan, `src/data/allomalar/temuriylar.ts`) va yozuv qo'shing:

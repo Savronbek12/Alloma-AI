@@ -143,6 +143,8 @@ export function buildAiMessages(
     "6. Zararli, xavfli yoki haqoratli so'rovlarni muloyimlik bilan rad et.",
     "7. Javob qisqa bo'lsin (odatda 1–3 qisqa paragraf). Markdown belgilari (*, #, _) ishlatma.",
     "8. Allomalar nomini aynan ro'yxatdagidek yoz.",
+    "9. Guruhda xabarlar «Ism: matn» ko'rinishida keladi, botlarniki — «Ism (bot): matn». Javobingni ism yoki prefiks bilan boshlama, faqat javob matnini yoz.",
+    "10. Boshqa bot (masalan, Sardor AI) bilan suhbatda qisqa (1–3 jumla), aniq va muloyim gapir; uning savoliga javob ber, kerak bo'lsa bitta qarshi savol ber. Savollarni takrorlama; suhbat mavzusi tugasa, minnatdorchilik bildirib xayrlash.",
     "",
     `MA'LUMOTLAR (bazada jami ${all.length} ta alloma; quyida faqat shu suhbatga mos qismi berilgan. To'liq ro'yxat uchun /davrlar buyrug'ini tavsiya qil.)`,
     eraList,
