@@ -176,6 +176,12 @@ describe("AI so'rovi hajmi (bepul tarif limiti)", () => {
     expect(codeAnswerToHtml("```js\nlet x = 1;")).toBe('<pre><code class="language-js">let x = 1;</code></pre>');
   });
 
+  it("tizim ko'rsatmasi botga me'yorida, xavfsiz hazil qilishni aytadi", () => {
+    const system = buildAiMessages("salom", service.all(), [])[0]?.content ?? "";
+    expect(system).toContain("12. HAZIL");
+    expect(system).toContain("jiddiy mavzularda");
+  });
+
   it("tizim ko'rsatmasi botni barcha fanlar bo'yicha mutaxassis qiladi", () => {
     const [system] = buildAiMessages("Fotosintez nima?", service.all(), []);
     expect(system?.content).toContain("BARCHA fanlar bo'yicha mutaxassis");
