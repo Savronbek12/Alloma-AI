@@ -28,6 +28,7 @@ import {
 } from "./format.js";
 import type { AiClient } from "./groq.js";
 import { addMoodEmoji, extractStickerTag, type StickerMood } from "./stickers.js";
+import { findSubject, RANDOM_BUTTON, SUBJECTS, SUBJECTS_BUTTON, type Subject } from "./subjects.js";
 import type { BotApi, InlineButton, TgCallbackQuery, TgMessage, TgUpdate } from "./telegram-api.js";
 
 /** Bepul AI kvotasini himoya qilish: bitta chatdan (odamdan) AI so'rovlari orasidagi minimal vaqt. */
@@ -77,6 +78,7 @@ interface ReplyContext {
 }
 
 export const BOT_COMMANDS = [
+  { command: "fanlar", description: "📚 15 ta fan bo'yicha savollar" },
   { command: "tasodifiy", description: "Tasodifiy alloma" },
   { command: "qidir", description: "Ism, shahar yoki asar bo'yicha qidirish" },
   { command: "davrlar", description: "Davrlar bo'yicha ko'rish" },
@@ -99,6 +101,7 @@ const helpText = (identity: BotIdentity, partnerBot?: string) =>
     "",
     "Yoki allomaning ismini yozing — <i>Beruniy</i>.",
     "",
+    "/fanlar — 📚 15 ta fan bo'yicha savollar",
     "/tasodifiy — tasodifiy alloma",
     "/qidir <i>so'z</i> — qidirish",
     "/davrlar — davrlar bo'yicha ko'rish",
@@ -223,6 +226,11 @@ export class AllomaBot {
     const partnerTopic = this.deps.partnerBot && isGroup ? parseAskPartner(text) : undefined;
     if (partnerTopic) return this.askPartner(ctx, partnerTopic);
 
+    // Pastki menyu tugmalari va «fanlar» so'zi.
+    const plain = normalizeForSearch(text.replace(/^[^\p{L}]+/u, ""));
+    if (text === SUBJECTS_BUTTON || plain === "fanlar") return this.sendSubjects(ctx);
+    if (text === RANDOM_BUTTON) return this.sendCard(ctx, this.deps.service.random());
+
     if (isIdentityQuestion(text)) {
       const answer = identityAnswer(this.identity);
       await this.send(ctx, escapeHtml(answer));
@@ -299,6 +307,8 @@ export class AllomaBot {
       case "/toxtat":
         if (ctx.fromBotId !== undefined) return;
         return this.stopDiscussion(ctx);
+      case "/fanlar":
+        return this.sendSubjects(ctx);
       case "/tasodifiy":
         return this.sendCard(ctx, this.deps.service.random());
       case "/davrlar":
@@ -312,8 +322,54 @@ export class AllomaBot {
         await this.send(ctx, "Qidiruv so'zini yozing, masalan: <code>/qidir Beruniy</code>");
         return;
       default:
+        // Shaxsiy chatda — pastki doimiy menyu tugmalari bilan («📚 Fanlar», «🎲 Tasodifiy alloma»).
+        if (!ctx.isGroup && ctx.fromBotId === undefined) {
+          await this.deliver(ctx, "sendMessage", {
+            text: helpText(this.identity, this.deps.partnerBot),
+            parse_mode: "HTML",
+            link_preview_options: { is_disabled: true },
+            reply_markup: {
+              keyboard: [[{ text: SUBJECTS_BUTTON }, { text: RANDOM_BUTTON }]],
+              resize_keyboard: true,
+              is_persistent: true,
+            },
+          });
+          return;
+        }
         await this.send(ctx, helpText(this.identity, this.deps.partnerBot));
     }
+  }
+
+  // ---------- Fanlar menyusi ----------
+
+  /** 15 ta fan — 3 tadan qatorda inline tugmalar. */
+  private async sendSubjects(ctx: ReplyContext): Promise<void> {
+    const buttons: InlineButton[][] = [];
+    for (let i = 0; i < SUBJECTS.length; i += 3) {
+      buttons.push(SUBJECTS.slice(i, i + 3).map((s) => ({ text: `${s.emoji} ${s.name}`, callback_data: `f:${s.id}` })));
+    }
+    await this.send(ctx, "📚 <b>Fanni tanlang</b> — so'ng savolingizni yozing yoki namunaviy savolni bosing:", buttons);
+  }
+
+  /** Tanlangan fan: namunaviy savollar va suhbat tarixiga fan konteksti. */
+  private async sendSubject(ctx: ReplyContext, subject: Subject): Promise<void> {
+    const buttons: InlineButton[][] = subject.examples.map((q, i) => [
+      { text: `❓ ${q}`, callback_data: `fq:${subject.id}:${i}` },
+    ]);
+    buttons.push([{ text: "⬅️ Barcha fanlar", callback_data: "fanlar" }]);
+    await this.send(
+      ctx,
+      `${subject.emoji} <b>${escapeHtml(subject.name)}</b>\n\nShu fan bo'yicha istalgan savolingizni yozing — tushuntirib beraman, masalalarni bosqichma-bosqich yechaman. Yoki namunaviy savolni tanlang:`,
+      buttons,
+    );
+    // Keyingi savollar shu fan kontekstida tushunilishi uchun.
+    this.conversations.append(
+      ctx.chatId,
+      `(${subject.name} fanini tanladim)`,
+      `${subject.name} fani tanlandi. Endi savollaringizga shu fan bo'yicha javob beraman.`,
+      [],
+      this.now(),
+    );
   }
 
   private async onCallback(query: TgCallbackQuery): Promise<void> {
@@ -327,6 +383,22 @@ export class AllomaBot {
     const data = query.data ?? "";
 
     if (data === "rnd") return this.sendCard(ctx, this.deps.service.random());
+    if (data === "fanlar") return this.sendSubjects(ctx);
+    if (data.startsWith("f:")) {
+      const subject = findSubject(data.slice(2));
+      if (subject) return this.sendSubject(ctx, subject);
+      return;
+    }
+    if (data.startsWith("fq:")) {
+      const [, id = "", index = ""] = data.split(":");
+      const question = findSubject(id)?.examples[Number(index)];
+      if (!question) return;
+      const speaker = query.from.first_name || query.from.username || "Foydalanuvchi";
+      // Savolni chatda ko'rinadigan qilib, keyin javob beramiz.
+      await this.send(ctx, `❓ <i>${escapeHtml(question)}</i>`);
+      await this.answerWithAi(ctx, question, speaker);
+      return;
+    }
     if (data.startsWith("e:")) return this.sendEra(ctx, data.slice(2));
     if (data.startsWith("a:")) {
       try {
