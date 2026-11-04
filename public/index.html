@@ -4,54 +4,89 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="O'zbek allomalari: hayoti, ilmiy merosi va asarlari — IX asrdan bugungacha." />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0d0c0a" />
     <title>Alloma-AI — O'zbek allomalari</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600&display=swap"
     />
     <link rel="stylesheet" href="/css/styles.css" />
   </head>
   <body>
-    <header class="masthead container">
-      <p class="masthead__brand">Alloma-AI</p>
-      <h1 class="masthead__title">O'zbek allomalari</h1>
-      <p class="masthead__lead">
-        Al-Xorazmiydan bugungi kungacha — <span id="total" class="num">…</span> mutafakkir, olim va
-        adibning hayoti va merosi, o'n ikki asr bo'ylab.
+    <header class="topbar">
+      <div class="topbar__inner container">
+        <a class="brand" href="/" aria-label="Alloma-AI — bosh sahifa">
+          <svg class="brand__mark" viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M0 0h4v4H0zM4 4h4v4H4zM8 0h4v4H8zM0 8h4v4H0zM8 8h4v4H8z" fill="currentColor" />
+          </svg>
+          <span>Alloma·AI</span>
+        </a>
+        <nav class="topnav" aria-label="Asosiy">
+          <a href="#davrlar">Davrlar</a>
+          <a href="#katalog">Katalog</a>
+          <button id="random" type="button" class="pill">Tasodifiy alloma</button>
+        </nav>
+      </div>
+      <div class="ticker">
+        <p class="ticker__inner container">
+          <span><span id="total" class="num">…</span> ta alloma · IX asrdan bugungacha · 5 davr</span>
+          <a class="ticker__link" href="#katalog">Katalogni ko'rish ›</a>
+        </p>
+      </div>
+    </header>
+
+    <section class="hero container" aria-labelledby="hero-title">
+      <div class="pixels" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+
+      <p class="hero__lines" aria-hidden="true">
+        <span>Har bir algoritm.</span>
+        <span>Har bir g'azal.</span>
+        <span>Har bir xarita.</span>
+        <span>Har bir shifo.</span>
       </p>
+      <h1 class="hero__title" id="hero-title">Barchasi — o'zbek allomalaridan.</h1>
+      <p class="hero__lead">
+        Al-Xorazmiydan bugungi kungacha: mutafakkir, olim va adiblarning hayoti va merosi, o'n ikki asr
+        bo'ylab.
+      </p>
+
       <div class="search">
-        <label class="visually-hidden" for="search">Qidirish</label>
+        <label class="label" for="search">Qidirish</label>
         <input
           id="search"
           type="search"
-          placeholder="Ism, shahar yoki asar nomi — masalan, «Boburnoma»"
+          placeholder="Ism, shahar yoki asar — masalan, «Boburnoma»"
           autocomplete="off"
         />
-        <button id="random" type="button" class="btn btn--quiet">Tasodifiy alloma</button>
       </div>
 
-      <nav id="timeline" class="timeline" aria-label="Davrlar bo'yicha saralash"></nav>
-    </header>
+      <div id="davrlar" class="eras-nav">
+        <p class="label">Davrlar</p>
+        <nav id="timeline" class="timeline" aria-label="Davr bo'yicha saralash"></nav>
+      </div>
+    </section>
 
-    <main class="container">
+    <main id="katalog" class="container">
       <section class="toolbar" aria-label="Filtrlar">
         <label class="field">
-          <span>Yo'nalish</span>
+          <span class="label">Yo'nalish</span>
           <select id="field"></select>
         </label>
         <label class="field">
-          <span>Tartib</span>
+          <span class="label">Tartib</span>
           <select id="sort">
             <option value="birthYear">Xronologik — qadimgidan</option>
             <option value="-birthYear">Xronologik — yangisidan</option>
             <option value="name">Alifbo bo'yicha</option>
           </select>
         </label>
-        <button id="reset" type="button" class="btn btn--text" hidden>Filtrlarni tozalash</button>
+        <button id="reset" type="button" class="text-btn" hidden>Filtrlarni tozalash</button>
         <p id="summary" class="toolbar__summary num" aria-live="polite"></p>
       </section>
 
@@ -60,11 +95,19 @@
       </div>
     </main>
 
-    <footer class="footer container">
-      <p>
-        Ma'lumotlar ochiq manbalar asosida qisqacha tayyorlangan. Rasmlar Wikimedia Commons'dan, har
-        birining muallifi va litsenziyasi alloma sahifasida ko'rsatilgan.
-      </p>
+    <footer class="footer">
+      <div class="container footer__inner">
+        <p class="brand brand--quiet">
+          <svg class="brand__mark" viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M0 0h4v4H0zM4 4h4v4H4zM8 0h4v4H8zM0 8h4v4H0zM8 8h4v4H8z" fill="currentColor" />
+          </svg>
+          <span>Alloma·AI</span>
+        </p>
+        <p>
+          Ma'lumotlar ochiq manbalar asosida qisqacha tayyorlangan. Rasmlar Wikimedia Commons'dan, har
+          birining muallifi va litsenziyasi alloma sahifasida ko'rsatilgan.
+        </p>
+      </div>
     </footer>
 
     <dialog id="detail" aria-labelledby="detail-title"></dialog>
