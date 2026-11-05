@@ -63,8 +63,9 @@ describe("Fanlar menyusi", () => {
     }
   });
 
-  it("/fanlar menyuda birinchi buyruq", () => {
-    expect(BOT_COMMANDS[0]?.command).toBe("fanlar");
+  it("menyuda /start birinchi, /fanlar ikkinchi", () => {
+    expect(BOT_COMMANDS[0]?.command).toBe("start");
+    expect(BOT_COMMANDS[1]?.command).toBe("fanlar");
   });
 
   it("/start — pastki menyuda «📚 Fanlar» tugmasi", async () => {

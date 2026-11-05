@@ -486,6 +486,33 @@ button {
 
 .w-actions {
   margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.home__extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.clock {
+  margin: 8px 0 6px;
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.clock__sec {
+  font-size: 24px;
+  color: var(--hint);
+  font-weight: 600;
+}
+
+.w-day > .w-day__label {
+  align-self: center;
 }
 
 .w-status {

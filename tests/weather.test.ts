@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import express from "express";
 import request from "supertest";
 import { REGIONS } from "../shared/regions.js";
+import { sunTimes, zonedParts } from "../shared/weather.js";
 import { AllomaBot, BOT_COMMANDS } from "../src/bot/alloma-bot.js";
 import type { BotApi, TgUpdate } from "../src/bot/telegram-api.js";
 import {
   createWeatherHandler,
+  findRegionPlace,
+  OpenMeteoClient,
+  TASHKENT,
   formatTime,
   MINIAPP_WEATHER_PATH,
   isTimeQuestion,
@@ -157,5 +161,67 @@ describe("ob-havo Mini App", () => {
     const app = express().get(MINIAPP_WEATHER_PATH, createWeatherHandler(new FakeWeather(), () => {}));
     const res = await request(app).get(`${MINIAPP_WEATHER_PATH}?region=yoq`);
     expect(res.status).toBe(400);
+  });
+});
+
+describe("ob-havo manbalari va vaqt ekrani", () => {
+  const APP = "https://alloma-ai.onrender.com/app/";
+
+  it("«🕒 Vaqt» pastki tugmasi Mini App'ning viloyat tanlash ekranini ochadi", async () => {
+    const api = new FakeApi();
+    const bot = new AllomaBot({ api, service, weather: new FakeWeather(), miniAppUrl: APP, log: () => {} });
+    await bot.handleUpdate(text("/start"));
+    const msg = api.calls.find((c) => c.method === "sendMessage");
+    const keyboard = (msg?.params.reply_markup as { keyboard: { text: string; web_app?: { url: string } }[][] }).keyboard;
+    expect(keyboard[1]?.[0]).toEqual({ text: TIME_BUTTON, web_app: { url: `${APP}#vaqt` } });
+  });
+
+  it("Open-Meteo rad etsa (Render IP'si) — MET Norway'dan oladi", async () => {
+    const urls: string[] = [];
+    const met = {
+      properties: {
+        timeseries: [
+          { time: "2026-11-05T09:00:00Z", data: { instant: { details: { air_temperature: 16.4, relative_humidity: 65, wind_speed: 2.4 } }, next_1_hours: { summary: { symbol_code: "lightrain" } } } },
+          { time: "2026-11-05T12:00:00Z", data: { instant: { details: { air_temperature: 18.2 } }, next_6_hours: { summary: { symbol_code: "cloudy" } } } },
+          { time: "2026-11-06T06:00:00Z", data: { instant: { details: { air_temperature: 9 } }, next_6_hours: { summary: { symbol_code: "rainshowers_day" } } } },
+          { time: "2026-11-06T10:00:00Z", data: { instant: { details: { air_temperature: 14 } }, next_6_hours: { summary: { symbol_code: "cloudy" } } } },
+        ],
+      },
+    };
+    const client = new OpenMeteoClient(
+      async (url) => {
+        urls.push(url);
+        if (url.includes("open-meteo")) return { ok: false, status: 429, json: async () => ({}) };
+        return { ok: true, status: 200, json: async () => met };
+      },
+      60_000,
+      () => {},
+    );
+    const w = await client.current(TASHKENT);
+    expect(urls.some((u) => u.includes("api.met.no"))).toBe(true);
+    expect(w.temperature).toBe(16.4);
+    expect(w.feelsLike).toBeUndefined();
+    expect(w.code).toBe(51);
+    expect(w.days?.map((d) => [d.date, d.min, d.max, d.code])).toEqual([
+      ["2026-11-05", 16.4, 18.2, 51],
+      ["2026-11-06", 9, 14, 80],
+    ]);
+  });
+
+  it("shahar nomi viloyatlar ro'yxatidan tarmoqsiz topiladi", () => {
+    expect(findRegionPlace("Samarqand")?.name).toBe("Samarqand");
+    expect(findRegionPlace("Urganch")?.name).toBe("Urganch");
+    expect(findRegionPlace("Farg'ona viloyati")?.name).toBe("Farg'ona");
+    expect(findRegionPlace("Parij")).toBeUndefined();
+  });
+
+  it("quyosh chiqishi/botishi — Toshkent, 5-noyabr (~07:01 / ~17:18)", () => {
+    const sun = sunTimes(new Date(NOW), 41.2995, 69.2401);
+    const local = (d: Date) => zonedParts(d);
+    expect(sun).toBeDefined();
+    const rise = local(sun!.sunrise);
+    const set = local(sun!.sunset);
+    expect(`${rise.hour}:${rise.minute}`).toMatch(/^0(6:5\d|7:0\d)$/);
+    expect(`${set.hour}:${set.minute}`).toMatch(/^17:(1|2)\d$/);
   });
 });

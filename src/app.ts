@@ -21,6 +21,8 @@ export function createApp(container: Container): Express {
         directives: {
           // Lokal http:// ishlab chiqishda resurslarni https ga majburlamaslik uchun.
           upgradeInsecureRequests: env.isProduction ? [] : null,
+          // Mini App ob-havoni foydalanuvchi qurilmasidan to'g'ridan-to'g'ri oladi (hosting IP'si cheklansa ham ishlaydi).
+          connectSrc: ["'self'", "https://api.open-meteo.com", "https://api.met.no"],
           // Mini App: Telegram WebApp SDK skripti va Telegram Web ichida (iframe) ochilishi.
           scriptSrc: ["'self'", "https://telegram.org"],
           frameAncestors: ["'self'", "https://web.telegram.org", "https://*.telegram.org"],

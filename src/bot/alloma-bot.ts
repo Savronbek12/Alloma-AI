@@ -92,6 +92,7 @@ interface ReplyContext {
 }
 
 export const BOT_COMMANDS = [
+  { command: "start", description: "🏠 Bosh menyu" },
   { command: "fanlar", description: "📚 15 ta fan bo'yicha savollar" },
   { command: "vaqt", description: "🕒 Hozirgi vaqt va sana" },
   { command: "obhavo", description: "🌤 Ob-havo (masalan: /obhavo Samarqand)" },
@@ -368,9 +369,11 @@ export class AllomaBot {
                   { text: RANDOM_BUTTON },
                 ],
                 [
-                  { text: TIME_BUTTON },
                   this.deps.miniAppUrl
-                    ? { text: WEATHER_BUTTON, web_app: { url: this.weatherAppUrl() } }
+                    ? { text: TIME_BUTTON, web_app: { url: this.regionAppUrl("vaqt") } }
+                    : { text: TIME_BUTTON },
+                  this.deps.miniAppUrl
+                    ? { text: WEATHER_BUTTON, web_app: { url: this.regionAppUrl("obhavo") } }
                     : { text: WEATHER_BUTTON },
                 ],
               ],
@@ -400,12 +403,18 @@ export class AllomaBot {
     } catch {
       // geokod xatosi — Toshkent vaqtini ko'rsatamiz
     }
-    await this.send(ctx, formatTime(new Date(this.now()), place));
+    await this.send(ctx, formatTime(new Date(this.now()), place), this.regionPicker(ctx, "vaqt"));
   }
 
-  /** Mini App'ning viloyat tanlash ekrani. */
-  private weatherAppUrl(): string {
-    return `${this.deps.miniAppUrl}#obhavo`;
+  /** Mini App'ning viloyat tanlash ekrani (vaqt yoki ob-havo). */
+  private regionAppUrl(mode: "vaqt" | "obhavo"): string {
+    return `${this.deps.miniAppUrl}#${mode}`;
+  }
+
+  /** Shaxsiy chatda — viloyatni Mini App'da tanlash tugmasi. */
+  private regionPicker(ctx: ReplyContext, mode: "vaqt" | "obhavo"): InlineButton[][] | undefined {
+    if (ctx.isGroup || !this.deps.miniAppUrl || ctx.fromBotId !== undefined) return undefined;
+    return [[{ text: "📍 Viloyatni tanlash", web_app: { url: this.regionAppUrl(mode) } }]];
   }
 
   private async sendWeather(ctx: ReplyContext, city: string): Promise<void> {
@@ -419,12 +428,7 @@ export class AllomaBot {
         await this.send(ctx, `«${escapeHtml(city)}» shahri topilmadi. Masalan: <code>/obhavo Samarqand</code>`);
         return;
       }
-      // Shaxsiy chatda — boshqa viloyatni Mini App'da tanlash tugmasi.
-      const pick =
-        !ctx.isGroup && this.deps.miniAppUrl && ctx.fromBotId === undefined
-          ? [[{ text: "📍 Viloyatni tanlash", web_app: { url: this.weatherAppUrl() } }]]
-          : undefined;
-      await this.send(ctx, formatWeather(place, await this.deps.weather.current(place)), pick);
+      await this.send(ctx, formatWeather(place, await this.deps.weather.current(place)), this.regionPicker(ctx, "obhavo"));
     } catch (err) {
       this.log(`[bot] ob-havo xatosi: ${(err as Error).message}`);
       await this.sendNotice(ctx, "Ob-havo ma'lumotini olib bo'lmadi, birozdan keyin urinib ko'ring.");
