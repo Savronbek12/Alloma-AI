@@ -1,3 +1,4 @@
+import { REGIONS, findRegion, type Region } from "../../shared/regions";
 import { SUBJECTS, findSubject, type Subject } from "../../shared/subjects";
 
 /** Telegram WebApp SDK'ning bizga kerak qismi (https://core.telegram.org/bots/webapps). */
@@ -24,6 +25,7 @@ const API = "/api/miniapp/chat";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const home = $("home");
+const weather = $("weather");
 const chat = $("chat");
 const log = $("log");
 const intro = $("intro");
@@ -125,6 +127,7 @@ function openSubject(subject: Subject): void {
   for (const m of history) addBubble(m.role === "user" ? "user" : "bot", m.content);
 
   home.hidden = true;
+  weather.hidden = true;
   chat.hidden = false;
   tg?.BackButton.show();
   scrollDown();
@@ -134,12 +137,121 @@ function openSubject(subject: Subject): void {
 function showHome(): void {
   current = undefined;
   chat.hidden = true;
+  weather.hidden = true;
   home.hidden = false;
   tg?.BackButton.hide();
 }
 
+// ---------- Ob-havo ----------
+
+interface WeatherResponse {
+  region: string;
+  city: string;
+  current: { temperature: number; feelsLike: number; humidity: number; windSpeed: number; emoji: string; text: string };
+  days: { label: string; date: string; min: number; max: number; rainChance?: number; emoji: string; text: string }[];
+}
+
+/** Bot tugmasidan to'g'ridan-to'g'ri ob-havoga ochilgan bo'lsa — viloyatlar ro'yxatidan «orqaga» yo'q. */
+const startedInWeather = location.hash.startsWith("#obhavo");
+const signed = (n: number) => `${n > 0 ? "+" : ""}${n}`;
+let weatherRequest = 0;
+
+function renderRegions(): void {
+  $("regions").replaceChildren(
+    ...REGIONS.map((r) => {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "region";
+      btn.innerHTML = `<span class="region__name">${escapeHtml(r.name)}</span><span class="region__city">${escapeHtml(r.city)}</span>`;
+      btn.addEventListener("click", () => {
+        tg?.HapticFeedback?.impactOccurred("light");
+        location.hash = `#obhavo/${r.id}`;
+      });
+      li.append(btn);
+      return li;
+    }),
+  );
+}
+
+function showWeatherScreen(title: string): void {
+  current = undefined;
+  home.hidden = true;
+  chat.hidden = true;
+  weather.hidden = false;
+  $("w-title").textContent = title;
+}
+
+function showRegionPicker(): void {
+  showWeatherScreen("Ob-havo");
+  $("w-pick").hidden = false;
+  $("w-result").hidden = true;
+  if (startedInWeather) tg?.BackButton.hide();
+  else tg?.BackButton.show();
+}
+
+const otherRegionLink = '<div class="w-actions"><a class="pill" href="#obhavo">📍 Boshqa viloyat</a></div>';
+
+function renderWeather(w: WeatherResponse): string {
+  const c = w.current;
+  const days = w.days
+    .map((d) => {
+      const rain = d.rainChance !== undefined && d.rainChance >= 20 ? ` · ☔ ${d.rainChance}%` : "";
+      return `<li class="w-day">
+        <span class="w-day__emoji" aria-hidden="true">${d.emoji}</span>
+        <span><span class="w-day__label">${escapeHtml(d.label)}</span>
+          <span class="w-day__sub">${escapeHtml(d.date)} · ${escapeHtml(d.text.toLowerCase())}${rain}</span></span>
+        <span class="w-day__temp">${signed(d.min)}° … ${signed(d.max)}°</span>
+      </li>`;
+    })
+    .join("");
+  return `<div class="w-now">
+      <p class="w-now__place">${escapeHtml(w.region)} · ${escapeHtml(w.city)}</p>
+      <div class="w-now__main">
+        <span class="w-now__emoji" aria-hidden="true">${c.emoji}</span>
+        <span class="w-now__temp">${signed(c.temperature)}°</span>
+      </div>
+      <p class="w-now__text">${escapeHtml(c.text)}</p>
+      <p class="w-now__meta"><span>Sezilishi ${signed(c.feelsLike)}°</span><span>💧 ${c.humidity}%</span><span>💨 ${c.windSpeed} m/s</span></p>
+    </div>
+    <ul class="w-days" aria-label="Prognoz">${days}</ul>
+    ${otherRegionLink}`;
+}
+
+async function showRegionWeather(region: Region): Promise<void> {
+  showWeatherScreen(region.name);
+  tg?.BackButton.show();
+  $("w-pick").hidden = true;
+  const box = $("w-result");
+  box.hidden = false;
+  box.innerHTML = '<p class="w-status"><span class="typing" aria-label="Yuklanmoqda"><i></i><i></i><i></i></span></p>';
+
+  const id = ++weatherRequest;
+  try {
+    const res = await fetch(`/api/miniapp/weather?region=${encodeURIComponent(region.id)}`);
+    const body = (await res.json().catch(() => null)) as (WeatherResponse & { error?: { message?: string } }) | null;
+    if (!res.ok || !body?.current) throw new Error(body?.error?.message ?? `Xatolik (${res.status}).`);
+    if (id !== weatherRequest) return;
+    box.innerHTML = renderWeather(body);
+    tg?.HapticFeedback?.notificationOccurred("success");
+  } catch (err) {
+    if (id !== weatherRequest) return;
+    const message = err instanceof TypeError ? "Internet aloqasini tekshiring." : (err as Error).message;
+    box.innerHTML = `<p class="w-status">${escapeHtml(message)}</p>${otherRegionLink}`;
+    tg?.HapticFeedback?.notificationOccurred("error");
+  }
+}
+
 function route(): void {
-  const subject = findSubject(location.hash.slice(1));
+  const hash = location.hash.slice(1);
+  if (hash === "obhavo") return showRegionPicker();
+  if (hash.startsWith("obhavo/")) {
+    const region = findRegion(hash.slice("obhavo/".length));
+    if (region) void showRegionWeather(region);
+    else showRegionPicker();
+    return;
+  }
+  const subject = findSubject(hash);
   if (subject) openSubject(subject);
   else showHome();
 }
@@ -237,12 +349,18 @@ $("reset").addEventListener("click", () => {
 const goHome = () => {
   location.hash = "";
 };
+/** Orqaga: prognozdan — viloyatlarga, qolganidan — bosh sahifaga. */
+const goBack = () => {
+  location.hash = location.hash.startsWith("#obhavo/") ? "#obhavo" : "";
+};
 $("back").addEventListener("click", goHome);
-tg?.BackButton.onClick(goHome);
+$("w-back").addEventListener("click", goBack);
+tg?.BackButton.onClick(goBack);
 window.addEventListener("hashchange", route);
 
 if (inTelegram) document.documentElement.classList.add("tg");
 renderSubjects();
+renderRegions();
 route();
 tg?.ready();
 tg?.expand();

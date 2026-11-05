@@ -1,3 +1,6 @@
+import type { RequestHandler } from "express";
+import { findRegion, type Region } from "../../shared/regions.js";
+
 /**
  * Vaqt va ob-havo: Open-Meteo (bepul, API kalitsiz) orqali.
  * Standart shahar — Toshkent; "ob-havo Samarqand" kabi shahar nomi ham qabul qilinadi.
@@ -26,7 +29,21 @@ export interface WeatherNow {
   isDay: boolean;
   todayMax?: number | undefined;
   todayMin?: number | undefined;
+  /** Kunlik prognoz: [0] — bugun, [1] — ertaga, [2] — indinga. */
+  days?: DayForecast[] | undefined;
 }
+
+export interface DayForecast {
+  /** "2026-11-06" (shahar vaqt mintaqasida). */
+  date: string;
+  code: number;
+  min: number;
+  max: number;
+  /** Yog'in ehtimoli, % (ma'lum bo'lmasa — undefined). */
+  rainChance?: number | undefined;
+}
+
+export const FORECAST_DAYS = 3;
 
 export interface WeatherClient {
   geocode(query: string): Promise<Place | undefined>;
@@ -67,7 +84,8 @@ export class OpenMeteoClient implements WeatherClient {
     const url =
       `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}` +
       "&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day" +
-      "&daily=temperature_2m_max,temperature_2m_min&forecast_days=1&wind_speed_unit=ms" +
+      "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
+      `&forecast_days=${FORECAST_DAYS}&wind_speed_unit=ms` +
       `&timezone=${encodeURIComponent(place.timezone)}`;
     const data = await this.getJson<{
       current: {
@@ -78,9 +96,23 @@ export class OpenMeteoClient implements WeatherClient {
         weather_code: number;
         is_day: number;
       };
-      daily?: { temperature_2m_max?: number[]; temperature_2m_min?: number[] };
+      daily?: {
+        time?: string[];
+        weather_code?: number[];
+        temperature_2m_max?: number[];
+        temperature_2m_min?: number[];
+        precipitation_probability_max?: (number | null)[];
+      };
     }>(url);
     const c = data.current;
+    const d = data.daily;
+    const days: DayForecast[] = (d?.time ?? []).flatMap((date, i) => {
+      const code = d?.weather_code?.[i];
+      const min = d?.temperature_2m_min?.[i];
+      const max = d?.temperature_2m_max?.[i];
+      if (code == null || min == null || max == null) return [];
+      return [{ date, code, min, max, rainChance: d?.precipitation_probability_max?.[i] ?? undefined }];
+    });
     const result: WeatherNow = {
       temperature: c.temperature_2m,
       feelsLike: c.apparent_temperature,
@@ -90,6 +122,7 @@ export class OpenMeteoClient implements WeatherClient {
       isDay: c.is_day === 1,
       todayMax: data.daily?.temperature_2m_max?.[0],
       todayMin: data.daily?.temperature_2m_min?.[0],
+      days,
     };
     this.cache.set(key, { at: Date.now(), data: result });
     return result;
@@ -163,7 +196,21 @@ export function formatWeather(place: Place, w: WeatherNow): string {
     lines.push(`📈 Bugun: ${signed(w.todayMin)}° … ${signed(w.todayMax)}°C`);
   }
   lines.push(`💧 Namlik: ${round(w.humidity)}%`, `💨 Shamol: ${round(w.windSpeed)} m/s`);
+
+  const ahead = (w.days ?? []).slice(1, FORECAST_DAYS);
+  if (ahead.length > 0) {
+    lines.push("", "<b>📅 Prognoz:</b>");
+    ahead.forEach((day, i) => lines.push(formatDay(day, i === 0 ? "Ertaga" : "Indinga")));
+  }
   return lines.join("\n");
+}
+
+/** "🌧 <b>Ertaga</b>, 6-noyabr: +8° … +15°C, yomg'ir (☔ 70%)" */
+export function formatDay(day: DayForecast, label: string): string {
+  const d = describeWeather(day.code, true);
+  const [, month = "1", date = "1"] = day.date.split("-");
+  const rain = day.rainChance !== undefined && day.rainChance >= 20 ? ` (☔ ${round(day.rainChance)}%)` : "";
+  return `${d.emoji} <b>${label}</b>, ${Number(date)}-${MONTHS[Number(month) - 1]}: ${signed(day.min)}° … ${signed(day.max)}°C, ${d.text.toLowerCase()}${rain}`;
 }
 
 const APOSTROPHES = /[ʻʼ‘’`']/g;
@@ -195,4 +242,61 @@ export function parseWeatherRequest(text: string): string | undefined {
   // "Samarqandda ob-havo" → "Samarqand"
   const city = cleanup(before).replace(/(?<=\S{3})(da|dagi)$/i, "") || cleanup(after);
   return city.length >= 2 ? city : "";
+}
+
+// ---------- Mini App: viloyat bo'yicha ob-havo API'si ----------
+
+export const MINIAPP_WEATHER_PATH = "/api/miniapp/weather";
+
+/** Mini App'dagi ob-havo ekrani uchun javob (matnlar serverda tayyorlanadi). */
+export interface WeatherResponse {
+  region: string;
+  city: string;
+  current: { temperature: number; feelsLike: number; humidity: number; windSpeed: number; emoji: string; text: string };
+  days: { label: string; date: string; min: number; max: number; rainChance?: number | undefined; emoji: string; text: string }[];
+}
+
+export function toWeatherResponse(region: Region, w: WeatherNow): WeatherResponse {
+  const now = describeWeather(w.code, w.isDay);
+  const labels = ["Bugun", "Ertaga", "Indinga"];
+  return {
+    region: region.name,
+    city: region.city,
+    current: {
+      temperature: Math.round(w.temperature),
+      feelsLike: Math.round(w.feelsLike),
+      humidity: Math.round(w.humidity),
+      windSpeed: Math.round(w.windSpeed),
+      ...now,
+    },
+    days: (w.days ?? []).slice(0, FORECAST_DAYS).map((d, i) => {
+      const [, month = "1", day = "1"] = d.date.split("-");
+      return {
+        label: labels[i] ?? "",
+        date: `${Number(day)}-${MONTHS[Number(month) - 1]}`,
+        min: Math.round(d.min),
+        max: Math.round(d.max),
+        rainChance: d.rainChance === undefined ? undefined : Math.round(d.rainChance),
+        ...describeWeather(d.code, true),
+      };
+    }),
+  };
+}
+
+/** GET /api/miniapp/weather?region=samarqand → WeatherResponse. Ochiq ma'lumot — initData talab qilinmaydi. */
+export function createWeatherHandler(client: WeatherClient, log: (m: string) => void = console.error): RequestHandler {
+  return async (req, res) => {
+    const region = findRegion(String(req.query.region ?? ""));
+    if (!region) {
+      res.status(400).json({ error: { message: "Bunday viloyat yo'q." } });
+      return;
+    }
+    try {
+      const place: Place = { name: region.city, latitude: region.latitude, longitude: region.longitude, timezone: DEFAULT_TIMEZONE };
+      res.set("Cache-Control", "public, max-age=300").json(toWeatherResponse(region, await client.current(place)));
+    } catch (err) {
+      log(`[weather] ${(err as Error).message}`);
+      res.status(502).json({ error: { message: "Ob-havo ma'lumotini olib bo'lmadi, birozdan keyin urinib ko'ring." } });
+    }
+  };
 }

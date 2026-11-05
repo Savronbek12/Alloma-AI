@@ -1,4 +1,5 @@
 import { createTelegramRuntime, type TelegramRuntime } from "./bot/index.js";
+import { OpenMeteoClient, type WeatherClient } from "./bot/weather.js";
 import { allomaSeeds } from "./data/allomalar/index.js";
 import { allomaImages } from "./data/images.generated.js";
 import { InMemoryAllomaRepository } from "./repositories/alloma.repository.js";
@@ -7,6 +8,8 @@ import { AllomaService } from "./services/alloma.service.js";
 export interface Container {
   allomaRepository: InMemoryAllomaRepository;
   allomaService: AllomaService;
+  /** Ob-havo manbasi (bot va Mini App uchun umumiy, keshli). */
+  weather: WeatherClient;
   /** Telegram bot (TELEGRAM_BOT_TOKEN berilmagan bo'lsa — undefined). */
   telegram?: TelegramRuntime | undefined;
 }
@@ -15,6 +18,7 @@ export interface Container {
 export function createContainer(options: { withBot?: boolean } = {}): Container {
   const allomaRepository = new InMemoryAllomaRepository(allomaSeeds, allomaImages);
   const allomaService = new AllomaService(allomaRepository);
-  const telegram = options.withBot ? createTelegramRuntime(allomaService) : undefined;
-  return { allomaRepository, allomaService, telegram };
+  const weather = new OpenMeteoClient();
+  const telegram = options.withBot ? createTelegramRuntime(allomaService, weather) : undefined;
+  return { allomaRepository, allomaService, weather, telegram };
 }

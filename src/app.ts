@@ -3,6 +3,7 @@ import express, { type Express } from "express";
 import helmet from "helmet";
 import { TELEGRAM_WEBHOOK_PATH } from "./bot/index.js";
 import { MINIAPP_CHAT_PATH } from "./bot/miniapp.js";
+import { createWeatherHandler, MINIAPP_WEATHER_PATH } from "./bot/weather.js";
 import { env } from "./config/env.js";
 import type { Container } from "./container.js";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler.js";
@@ -38,6 +39,7 @@ export function createApp(container: Container): Express {
     app.post(MINIAPP_CHAT_PATH, container.telegram.miniAppHandler);
   }
 
+  app.get(MINIAPP_WEATHER_PATH, createWeatherHandler(container.weather));
   app.use("/api", createApiRouter(container.allomaService));
   app.use("/api", notFoundHandler);
 

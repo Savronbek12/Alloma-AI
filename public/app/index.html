@@ -17,7 +17,24 @@
         <p class="hero__sub">Fanni tanlang va savolingizni yozing — tushuntirib beraman, masalalarni bosqichma-bosqich yechaman.</p>
       </header>
       <ul id="subjects" class="grid" aria-label="Fanlar"></ul>
+      <div class="home__extra">
+        <a class="pill" href="#obhavo">🌤 Ob-havo</a>
+      </div>
     </main>
+
+    <!-- Ob-havo: viloyatni tanlash va prognoz -->
+    <section id="weather" class="screen" hidden>
+      <header class="chat__head">
+        <button id="w-back" class="icon-btn" type="button" aria-label="Orqaga">‹</button>
+        <span class="chat__emoji" aria-hidden="true">🌤</span>
+        <h2 id="w-title" class="chat__title">Ob-havo</h2>
+      </header>
+      <div id="w-pick">
+        <p class="w-ask">Qaysi viloyatdasiz?</p>
+        <ul id="regions" class="regions" aria-label="Viloyatlar"></ul>
+      </div>
+      <div id="w-result" class="w-result" aria-live="polite" hidden></div>
+    </section>
 
     <!-- Tanlangan fan bo'yicha suhbat -->
     <section id="chat" class="screen chat" hidden>

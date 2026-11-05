@@ -3,7 +3,7 @@ import type { RequestHandler } from "express";
 import { env } from "../config/env.js";
 import type { AllomaService } from "../services/alloma.service.js";
 import { AllomaBot, BOT_COMMANDS } from "./alloma-bot.js";
-import { OpenMeteoClient } from "./weather.js";
+import { OpenMeteoClient, type WeatherClient } from "./weather.js";
 import { botDescription, botShortDescription } from "./format.js";
 import { GroqClient } from "./groq.js";
 import { createMiniAppChatHandler, MINIAPP_PATH } from "./miniapp.js";
@@ -60,7 +60,10 @@ export function createWebhookHandler(
 /**
  * Bot sozlamalari to'liq bo'lsa runtime yaratadi, aks holda undefined (sayt botsiz ishlayveradi).
  */
-export function createTelegramRuntime(service: AllomaService): TelegramRuntime | undefined {
+export function createTelegramRuntime(
+  service: AllomaService,
+  weather: WeatherClient = new OpenMeteoClient(),
+): TelegramRuntime | undefined {
   const token = env.TELEGRAM_BOT_TOKEN;
   const ai = Boolean(env.GROQ_API_KEY);
   if (!token) {
@@ -128,7 +131,7 @@ export function createTelegramRuntime(service: AllomaService): TelegramRuntime |
     identity,
     miniAppUrl,
     partnerBot: env.PARTNER_BOT_USERNAME,
-    weather: new OpenMeteoClient(),
+    weather,
   });
   const secret =
     env.TELEGRAM_WEBHOOK_SECRET ?? createHash("sha256").update(`alloma-ai:${token}`).digest("hex").slice(0, 48);

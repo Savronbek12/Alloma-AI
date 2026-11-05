@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
+import express from "express";
+import request from "supertest";
+import { REGIONS } from "../shared/regions.js";
 import { AllomaBot, BOT_COMMANDS } from "../src/bot/alloma-bot.js";
 import type { BotApi, TgUpdate } from "../src/bot/telegram-api.js";
 import {
+  createWeatherHandler,
   formatTime,
+  MINIAPP_WEATHER_PATH,
   isTimeQuestion,
   parseWeatherRequest,
   TIME_BUTTON,
@@ -34,7 +39,13 @@ class FakeWeather implements WeatherClient {
   }
   async current(place: Place): Promise<WeatherNow> {
     this.places.push(place.name);
-    return { temperature: 12.4, feelsLike: 10.2, humidity: 55, windSpeed: 3.2, code: 0, isDay: true, todayMin: 5, todayMax: 16 };
+    return { temperature: 12.4, feelsLike: 10.2, humidity: 55, windSpeed: 3.2, code: 0, isDay: true, todayMin: 5, todayMax: 16,
+      days: [
+        { date: "2026-11-05", code: 0, min: 5, max: 16, rainChance: 0 },
+        { date: "2026-11-06", code: 61, min: 7.6, max: 14.8, rainChance: 70 },
+        { date: "2026-11-07", code: 3, min: 4, max: 11, rainChance: 10 },
+      ],
+    };
   }
 }
 
@@ -87,6 +98,9 @@ describe("vaqt va ob-havo", () => {
     await bot.handleUpdate(text(WEATHER_BUTTON));
     expect(api.lastText()).toContain("Toshkent");
     expect(api.lastText()).toContain("+12°C");
+    expect(api.lastText()).toContain("<b>Ertaga</b>, 6-noyabr: +8° … +15°C, yomg'ir (☔ 70%)");
+    expect(api.lastText()).toContain("<b>Indinga</b>, 7-noyabr: +4° … +11°C, bulutli");
+    expect(api.lastText()).not.toContain("☔ 10%");
   });
 
   it("/obhavo Samarqand — boshqa shahar", async () => {
@@ -100,5 +114,48 @@ describe("vaqt va ob-havo", () => {
     const { api, bot } = setup();
     await bot.handleUpdate(text("/obhavo Qwertyabad"));
     expect(api.lastText()).toContain("topilmadi");
+  });
+});
+
+describe("ob-havo Mini App", () => {
+  const APP = "https://alloma-ai.onrender.com/app/";
+
+  it("«🌤 Ob-havo» pastki tugmasi Mini App'ning viloyat tanlash ekranini ochadi", async () => {
+    const api = new FakeApi();
+    const bot = new AllomaBot({ api, service, weather: new FakeWeather(), miniAppUrl: APP, log: () => {} });
+    await bot.handleUpdate(text("/start"));
+    const msg = api.calls.find((c) => c.method === "sendMessage");
+    const keyboard = (msg?.params.reply_markup as { keyboard: { text: string; web_app?: { url: string } }[][] }).keyboard;
+    expect(keyboard[1]?.[1]).toEqual({ text: WEATHER_BUTTON, web_app: { url: `${APP}#obhavo` } });
+  });
+
+  it("/obhavo javobida «📍 Viloyatni tanlash» tugmasi bor", async () => {
+    const api = new FakeApi();
+    const bot = new AllomaBot({ api, service, weather: new FakeWeather(), miniAppUrl: APP, log: () => {} });
+    await bot.handleUpdate(text("/obhavo"));
+    const msg = api.calls.at(-1);
+    const buttons = (msg?.params.reply_markup as { inline_keyboard: { web_app?: { url: string } }[][] }).inline_keyboard;
+    expect(buttons[0]?.[0]?.web_app?.url).toBe(`${APP}#obhavo`);
+  });
+
+  it("14 ta hudud, id'lar takrorlanmaydi", () => {
+    expect(REGIONS).toHaveLength(14);
+    expect(new Set(REGIONS.map((r) => r.id)).size).toBe(14);
+  });
+
+  it("GET /api/miniapp/weather — viloyat bo'yicha prognoz", async () => {
+    const app = express().get(MINIAPP_WEATHER_PATH, createWeatherHandler(new FakeWeather(), () => {}));
+    const res = await request(app).get(`${MINIAPP_WEATHER_PATH}?region=samarqand`);
+    expect(res.status).toBe(200);
+    expect(res.body.region).toBe("Samarqand");
+    expect(res.body.current.temperature).toBe(12);
+    expect(res.body.days.map((d: { label: string }) => d.label)).toEqual(["Bugun", "Ertaga", "Indinga"]);
+    expect(res.body.days[1]).toMatchObject({ date: "6-noyabr", min: 8, max: 15, rainChance: 70, text: "Yomg'ir" });
+  });
+
+  it("noma'lum viloyat — 400", async () => {
+    const app = express().get(MINIAPP_WEATHER_PATH, createWeatherHandler(new FakeWeather(), () => {}));
+    const res = await request(app).get(`${MINIAPP_WEATHER_PATH}?region=yoq`);
+    expect(res.status).toBe(400);
   });
 });
