@@ -3,6 +3,7 @@ import type { RequestHandler } from "express";
 import { env } from "../config/env.js";
 import type { AllomaService } from "../services/alloma.service.js";
 import { AllomaBot, BOT_COMMANDS } from "./alloma-bot.js";
+import { OpenMeteoClient } from "./weather.js";
 import { botDescription, botShortDescription } from "./format.js";
 import { GroqClient } from "./groq.js";
 import { createMiniAppChatHandler, MINIAPP_PATH } from "./miniapp.js";
@@ -127,6 +128,7 @@ export function createTelegramRuntime(service: AllomaService): TelegramRuntime |
     identity,
     miniAppUrl,
     partnerBot: env.PARTNER_BOT_USERNAME,
+    weather: new OpenMeteoClient(),
   });
   const secret =
     env.TELEGRAM_WEBHOOK_SECRET ?? createHash("sha256").update(`alloma-ai:${token}`).digest("hex").slice(0, 48);
@@ -166,14 +168,10 @@ export function createTelegramRuntime(service: AllomaService): TelegramRuntime |
         .call("setMyShortDescription", { short_description: botShortDescription(identity) })
         .catch((err: Error) => console.warn("[bot] setMyShortDescription:", err.message));
 
-      // Chat pastidagi menyu tugmasi — Mini App (fanlar).
-      if (miniAppUrl) {
-        await api
-          .call("setChatMenuButton", {
-            menu_button: { type: "web_app", text: "📚 Fanlar", web_app: { url: miniAppUrl } },
-          })
-          .catch((err: Error) => console.warn("[bot] setChatMenuButton:", err.message));
-      }
+      // Xabar yozish joyining chap tomonidagi tugma — buyruqlar menyusi (fanlar, vaqt, ob-havo...).
+      await api
+        .call("setChatMenuButton", { menu_button: { type: "commands" } })
+        .catch((err: Error) => console.warn("[bot] setChatMenuButton:", err.message));
 
       if (mode === "webhook") {
         const url = `${env.publicUrl}${TELEGRAM_WEBHOOK_PATH}`;

@@ -71,7 +71,7 @@ describe("Fanlar menyusi", () => {
     const { api, bot } = setup();
     await bot.handleUpdate(text("/start"));
     const keyboard = (api.last()?.reply_markup as { keyboard: { text: string }[][] }).keyboard;
-    expect(keyboard.flat().map((b) => b.text)).toEqual([SUBJECTS_BUTTON, RANDOM_BUTTON]);
+    expect(keyboard.flat().map((b) => b.text)).toEqual([SUBJECTS_BUTTON, RANDOM_BUTTON, "🕒 Vaqt", "🌤 Ob-havo"]);
   });
 
   for (const input of ["/fanlar", SUBJECTS_BUTTON, "Fanlar"]) {

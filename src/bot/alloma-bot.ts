@@ -30,6 +30,16 @@ import type { AiClient } from "./groq.js";
 import { addMoodEmoji, extractStickerTag, type StickerMood } from "./stickers.js";
 import { findSubject, RANDOM_BUTTON, SUBJECTS, SUBJECTS_BUTTON, type Subject } from "./subjects.js";
 import type { BotApi, InlineButton, TgCallbackQuery, TgMessage, TgUpdate } from "./telegram-api.js";
+import {
+  formatTime,
+  formatWeather,
+  isTimeQuestion,
+  parseWeatherRequest,
+  TASHKENT,
+  TIME_BUTTON,
+  WEATHER_BUTTON,
+  type WeatherClient,
+} from "./weather.js";
 
 /** Bepul AI kvotasini himoya qilish: bitta chatdan (odamdan) AI so'rovlari orasidagi minimal vaqt. */
 export const AI_COOLDOWN_MS = 5_000;
@@ -46,6 +56,8 @@ export interface AllomaBotDeps {
   api: BotApi;
   service: AllomaService;
   ai?: AiClient | undefined;
+  /** Ob-havo manbasi (berilmasa — ob-havo o'chiq, vaqt baribir ishlaydi). */
+  weather?: WeatherClient | undefined;
   /** Ommaviy sayt manzili (rasmlar va "Saytda ochish" tugmasi uchun). */
   siteUrl?: string | undefined;
   /** Mini App manzili (https). Berilsa — shaxsiy chatda «📚 Fanlar» Mini App'ni ochadi. */
@@ -81,6 +93,8 @@ interface ReplyContext {
 
 export const BOT_COMMANDS = [
   { command: "fanlar", description: "📚 15 ta fan bo'yicha savollar" },
+  { command: "vaqt", description: "🕒 Hozirgi vaqt va sana" },
+  { command: "obhavo", description: "🌤 Ob-havo (masalan: /obhavo Samarqand)" },
   { command: "tasodifiy", description: "Tasodifiy alloma" },
   { command: "qidir", description: "Ism, shahar yoki asar bo'yicha qidirish" },
   { command: "davrlar", description: "Davrlar bo'yicha ko'rish" },
@@ -104,6 +118,8 @@ const helpText = (identity: BotIdentity, partnerBot?: string) =>
     "Yoki allomaning ismini yozing — <i>Beruniy</i>.",
     "",
     "/fanlar — 📚 15 ta fan bo'yicha savollar",
+    "/vaqt — 🕒 hozirgi vaqt va sana",
+    "/obhavo <i>shahar</i> — 🌤 ob-havo",
     "/tasodifiy — tasodifiy alloma",
     "/qidir <i>so'z</i> — qidirish",
     "/davrlar — davrlar bo'yicha ko'rish",
@@ -237,6 +253,10 @@ export class AllomaBot {
     const plain = normalizeForSearch(text.replace(/^[^\p{L}]+/u, ""));
     if (text === SUBJECTS_BUTTON || plain === "fanlar") return this.sendSubjects(ctx);
     if (text === RANDOM_BUTTON) return this.sendCard(ctx, this.deps.service.random());
+    if (text === TIME_BUTTON || isTimeQuestion(text)) return this.sendTime(ctx);
+    if (text === WEATHER_BUTTON) return this.sendWeather(ctx, "");
+    const weatherCity = parseWeatherRequest(text);
+    if (weatherCity !== undefined) return this.sendWeather(ctx, weatherCity);
 
     if (isIdentityQuestion(text)) {
       const answer = identityAnswer(this.identity);
@@ -318,6 +338,10 @@ export class AllomaBot {
         return this.sendSubjects(ctx);
       case "/tasodifiy":
         return this.sendCard(ctx, this.deps.service.random());
+      case "/vaqt":
+        return this.sendTime(ctx, arg);
+      case "/obhavo":
+        return this.sendWeather(ctx, arg);
       case "/davrlar":
         return this.sendEras(ctx);
       case "/yangi":
@@ -343,6 +367,7 @@ export class AllomaBot {
                     : { text: SUBJECTS_BUTTON },
                   { text: RANDOM_BUTTON },
                 ],
+                [{ text: TIME_BUTTON }, { text: WEATHER_BUTTON }],
               ],
               resize_keyboard: true,
               is_persistent: true,
@@ -351,6 +376,43 @@ export class AllomaBot {
           return;
         }
         await this.send(ctx, helpText(this.identity, this.deps.partnerBot));
+    }
+  }
+
+  // ---------- Vaqt va ob-havo ----------
+
+  /** Shahar nomi bo'yicha joy (bo'sh — Toshkent). undefined — topilmadi. */
+  private async resolvePlace(city: string) {
+    if (!city || /^(toshkent|tashkent|ташкент)$/i.test(city)) return TASHKENT;
+    if (!this.deps.weather) return undefined;
+    return this.deps.weather.geocode(city);
+  }
+
+  private async sendTime(ctx: ReplyContext, city = ""): Promise<void> {
+    let place = TASHKENT;
+    try {
+      place = (await this.resolvePlace(city)) ?? TASHKENT;
+    } catch {
+      // geokod xatosi — Toshkent vaqtini ko'rsatamiz
+    }
+    await this.send(ctx, formatTime(new Date(this.now()), place));
+  }
+
+  private async sendWeather(ctx: ReplyContext, city: string): Promise<void> {
+    if (!this.deps.weather) {
+      await this.sendNotice(ctx, "Ob-havo xizmati hozircha o'chiq.");
+      return;
+    }
+    try {
+      const place = await this.resolvePlace(city);
+      if (!place) {
+        await this.send(ctx, `«${escapeHtml(city)}» shahri topilmadi. Masalan: <code>/obhavo Samarqand</code>`);
+        return;
+      }
+      await this.send(ctx, formatWeather(place, await this.deps.weather.current(place)));
+    } catch (err) {
+      this.log(`[bot] ob-havo xatosi: ${(err as Error).message}`);
+      await this.sendNotice(ctx, "Ob-havo ma'lumotini olib bo'lmadi, birozdan keyin urinib ko'ring.");
     }
   }
 
